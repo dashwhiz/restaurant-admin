@@ -18,6 +18,10 @@ interface DayGroup {
   count: number;
 }
 
+// Department accents so Бар / Кујна read apart at a glance (theme-aware).
+const BAR_TONE = { border: 'border-blue-500', text: 'text-blue-600 dark:text-blue-400' };
+const KITCHEN_TONE = { border: 'border-amber-500', text: 'text-amber-600 dark:text-amber-400' };
+
 export default function SalesPage() {
   const toast = useToast();
   const [sales, setSales] = useState<SaleRow[]>([]);
@@ -93,10 +97,10 @@ export default function SalesPage() {
     </div>
   );
 
-  const section = (label: string, list: SaleRow[]) =>
+  const section = (label: string, list: SaleRow[], tone: { border: string; text: string }) =>
     list.length === 0 ? null : (
-      <div className="mt-2">
-        <div className="mb-1 text-xs font-bold uppercase tracking-wide text-muted">
+      <div className={`mt-3 border-l-4 ${tone.border} pl-3`}>
+        <div className={`mb-1 text-xs font-bold uppercase tracking-wide ${tone.text}`}>
           {label} · {list.reduce((n, s) => n + (s.quantity || 0), 0)}×
         </div>
         {list.map(row)}
@@ -136,8 +140,8 @@ export default function SalesPage() {
                 </button>
                 {open && (
                   <div className="border-t border-border bg-surface px-4 pb-3">
-                    {section('Бар', g.bar)}
-                    {section('Кујна', g.kitchen)}
+                    {section('Бар', g.bar, BAR_TONE)}
+                    {section('Кујна', g.kitchen, KITCHEN_TONE)}
                   </div>
                 )}
               </div>
