@@ -48,6 +48,15 @@ export async function updateRecipe(id: string, input: RecipeInput): Promise<void
   if (error) throw error;
 }
 
+/** Update just the selling price (used by the bulk Prices page). */
+export async function updateRecipePrice(id: string, price: number): Promise<void> {
+  const { error } = await getSupabase()
+    .from('recipes')
+    .update({ selling_price: price, price_updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 /**
  * Delete a recipe and everything referencing it. This also removes its sales
  * history (a destructive, confirmed action) — it does NOT reverse stock for
