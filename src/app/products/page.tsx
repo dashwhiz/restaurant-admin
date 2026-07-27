@@ -80,7 +80,7 @@ export default function ProductsPage() {
         {loading ? (
           <p className="p-6 text-center text-sm text-muted">Вчитување…</p>
         ) : filtered.length === 0 ? (
-          <EmptyState icon="📦" text={query ? 'Нема резултати' : 'Сè уште нема производи'} />
+          <EmptyState text={query ? 'Нема резултати' : 'Сè уште нема производи'} />
         ) : (
           <table className="w-full text-sm">
             <thead className="border-b border-border text-left text-xs uppercase text-muted">

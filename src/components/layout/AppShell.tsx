@@ -8,7 +8,15 @@ import { Login } from './Login';
 import { ToastProvider } from '@/components/ui/Toast';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { requireAuth, getSession, onAuthChange, signOut } from '@/lib/services/auth';
-import { IconMenu } from '@/components/ui/Icons';
+import { IconMenu, IconLogo, IconPlug } from '@/components/ui/Icons';
+
+function Brand({ className = '' }: { className?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-2 font-extrabold ${className}`}>
+      <IconLogo className="h-5 w-5 text-primary" /> Лира
+    </span>
+  );
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -51,7 +59,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const sidebarInner = (
     <>
-      <div className="mb-4 px-2 pt-2 text-lg font-extrabold tracking-tight">🍽️ Лира</div>
+      <Brand className="mb-4 px-2 pt-2 text-lg" />
       {navLinks}
       {requireAuth && (
         <button
@@ -88,7 +96,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <button onClick={() => setOpen(true)} aria-label="Мени">
               <IconMenu className="h-6 w-6" />
             </button>
-            <span className="font-extrabold">🍽️ Лира</span>
+            <Brand />
           </header>
           <main className="mx-auto w-full max-w-6xl flex-1 p-4 sm:p-6">{children}</main>
         </div>
@@ -105,7 +113,7 @@ function NotConfigured() {
   return (
     <div className="flex min-h-dvh items-center justify-center p-6">
       <div className="card max-w-md text-center">
-        <div className="mb-2 text-3xl">🔌</div>
+        <IconPlug className="mx-auto mb-2 h-8 w-8 text-muted" />
         <h1 className="mb-2 text-lg font-bold">Базата не е поврзана</h1>
         <p className="text-sm text-muted">
           Копирај <code className="rounded bg-background px-1">.env.local.example</code> во{' '}

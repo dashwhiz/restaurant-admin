@@ -6,7 +6,7 @@ export function ComingSoon({ title }: { title: string }) {
     <>
       <PageHeader title={title} />
       <div className="card text-sm text-muted">
-        🚧 Оваа секција допрва се пренесува од старата апликација.
+        Оваа секција допрва се пренесува од старата апликација.
       </div>
     </>
   );

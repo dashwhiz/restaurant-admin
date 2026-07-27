@@ -61,7 +61,7 @@ export default function DeliveriesPage() {
         {loading ? (
           <p className="p-6 text-center text-sm text-muted">Вчитување…</p>
         ) : rows.length === 0 ? (
-          <EmptyState icon="🚚" text="Сè уште нема испораки" />
+          <EmptyState text="Сè уште нема испораки" />
         ) : (
           <table className="w-full text-sm">
             <thead className="border-b border-border text-left text-xs uppercase text-muted">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Badge } from '@/components/ui/Badge';
+import { IconCheck } from '@/components/ui/Icons';
 import { useToast } from '@/components/ui/Toast';
 import { fmtMKD } from '@/lib/format';
 import { listProducts } from '@/lib/services/products';
@@ -51,7 +52,9 @@ export default function DashboardPage() {
           <div className="card mt-5">
             <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted">Мала залиха</h2>
             {low.length === 0 ? (
-              <p className="text-sm text-muted">✅ Сите ставки се над минимумот.</p>
+              <p className="flex items-center gap-2 text-sm text-muted">
+                <IconCheck className="h-4 w-4 text-success" /> Сите ставки се над минимумот.
+              </p>
             ) : (
               <ul className="divide-y divide-border">
                 {low.map((p) => (

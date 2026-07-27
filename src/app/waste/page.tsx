@@ -62,7 +62,7 @@ export default function WastePage() {
         {loading ? (
           <p className="p-6 text-center text-sm text-muted">Вчитување…</p>
         ) : rows.length === 0 ? (
-          <EmptyState icon="🗑️" text="Сè уште нема внесен отпад" />
+          <EmptyState text="Сè уште нема внесен отпад" />
         ) : (
           <table className="w-full text-sm">
             <thead className="border-b border-border text-left text-xs uppercase text-muted">

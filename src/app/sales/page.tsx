@@ -93,11 +93,11 @@ export default function SalesPage() {
     </div>
   );
 
-  const section = (label: string, icon: string, list: SaleRow[]) =>
+  const section = (label: string, list: SaleRow[]) =>
     list.length === 0 ? null : (
       <div className="mt-2">
         <div className="mb-1 text-xs font-bold uppercase tracking-wide text-muted">
-          {icon} {label} · {list.reduce((n, s) => n + (s.quantity || 0), 0)}×
+          {label} · {list.reduce((n, s) => n + (s.quantity || 0), 0)}×
         </div>
         {list.map(row)}
       </div>
@@ -118,7 +118,7 @@ export default function SalesPage() {
       {loading ? (
         <p className="text-sm text-muted">Вчитување…</p>
       ) : groups.length === 0 ? (
-        <div className="card"><EmptyState icon="💰" text="Сè уште нема продажби" /></div>
+        <div className="card"><EmptyState text="Сè уште нема продажби" /></div>
       ) : (
         <div className="flex flex-col gap-3">
           {groups.map((g) => {
@@ -136,8 +136,8 @@ export default function SalesPage() {
                 </button>
                 {open && (
                   <div className="border-t border-border bg-surface px-4 pb-3">
-                    {section('Бар', '🍺', g.bar)}
-                    {section('Кујна', '🍳', g.kitchen)}
+                    {section('Бар', g.bar)}
+                    {section('Кујна', g.kitchen)}
                   </div>
                 )}
               </div>

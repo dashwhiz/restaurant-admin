@@ -21,11 +21,10 @@ export function PageHeader({
   );
 }
 
-export function EmptyState({ icon = '📋', text }: { icon?: string; text: string }) {
+export function EmptyState({ text }: { text: string }) {
   return (
-    <div className="flex flex-col items-center gap-2 py-12 text-center text-muted">
-      <div className="text-3xl">{icon}</div>
-      <p className="text-sm">{text}</p>
+    <div className="py-12 text-center text-sm text-muted">
+      <p>{text}</p>
     </div>
   );
 }

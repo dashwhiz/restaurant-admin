@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { signIn } from '@/lib/services/auth';
+import { IconLogo } from '@/components/ui/Icons';
 
 /** Email + password login shown when auth is required and there's no session. */
 export function Login() {
@@ -26,7 +27,9 @@ export function Login() {
   return (
     <div className="flex min-h-dvh items-center justify-center p-6">
       <form onSubmit={submit} className="card w-full max-w-sm">
-        <div className="mb-4 text-center text-lg font-extrabold">🍽️ Лира</div>
+        <div className="mb-4 flex items-center justify-center gap-2 text-lg font-extrabold">
+          <IconLogo className="h-6 w-6 text-primary" /> Лира
+        </div>
         <label className="label">Е-маил</label>
         <input
           className="input mb-3"
