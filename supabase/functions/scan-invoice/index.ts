@@ -59,8 +59,18 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
+  // Trim: a key pasted into the dashboard often carries a trailing newline or
+  // space, which makes the header invalid and comes back as a bare 401.
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY')?.trim();
   if (!apiKey) return json({ error: 'ANTHROPIC_API_KEY не е поставен на серверот.' });
+
+  // Anthropic takes API keys (sk-ant-api…) on x-api-key, but OAuth tokens
+  // (sk-ant-oat…) on Authorization: Bearer with an extra beta header. Sending
+  // one in the other's slot is rejected as a 401.
+  const isOauthToken = apiKey.startsWith('sk-ant-oat');
+  const authHeaders: Record<string, string> = isOauthToken
+    ? { Authorization: `Bearer ${apiKey}`, 'anthropic-beta': 'oauth-2025-04-20' }
+    : { 'x-api-key': apiKey };
 
   try {
     const { base64, mimeType } = await req.json();
@@ -77,8 +87,8 @@ Deno.serve(async (req: Request) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
+        ...authHeaders,
       },
       body: JSON.stringify({
         model: 'claude-opus-4-8',
@@ -88,8 +98,26 @@ Deno.serve(async (req: Request) => {
     });
 
     if (!resp.ok) {
-      const e = await resp.json().catch(() => ({}));
-      return json({ error: e?.error?.message || `Anthropic грешка ${resp.status}` });
+      // Read as text first: a 401 from an edge/proxy layer isn't always JSON,
+      // and .json() swallowing it is why this surfaced as a bare status code.
+      const raw = await resp.text().catch(() => '');
+      let detail = '';
+      try {
+        detail = JSON.parse(raw)?.error?.message ?? '';
+      } catch {
+        detail = raw.slice(0, 200);
+      }
+      if (resp.status === 401) {
+        // Never log the key itself — shape only, enough to spot a bad paste.
+        console.error(
+          `Anthropic 401. key length=${apiKey.length}, prefix=${apiKey.slice(0, 12)}, ` +
+            `oauth=${isOauthToken}, detail=${detail || '(empty body)'}`,
+        );
+        return json({
+          error: `Anthropic одби автентикација (401). ${detail || 'Провери го клучот во Edge Functions → Secrets.'}`,
+        });
+      }
+      return json({ error: detail || `Anthropic грешка ${resp.status}` });
     }
 
     const data = await resp.json();
