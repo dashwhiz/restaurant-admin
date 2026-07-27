@@ -42,7 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {NAV_GROUPS.map((group, i) => (
         <div key={group.title ?? i} className="flex flex-col gap-0.5">
           {group.title && (
-            <span className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            <span className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.1em] text-sidebar-muted">
               {group.title}
             </span>
           )}
@@ -53,8 +53,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               onClick={() => setOpen(false)}
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 isActive(href)
-                  ? 'bg-primary/12 text-primary'
-                  : 'text-foreground/80 hover:bg-background'
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-sidebar-fg/80 hover:bg-white/5 hover:text-sidebar-fg'
               }`}
             >
               <Icon className="h-5 w-5 shrink-0" />
@@ -73,7 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {requireAuth && (
         <button
           onClick={() => signOut()}
-          className="mt-auto rounded-lg px-3 py-2 text-left text-sm text-muted hover:bg-background"
+          className="mt-auto rounded-lg px-3 py-2 text-left text-sm text-sidebar-muted hover:bg-white/5 hover:text-sidebar-fg"
         >
           Одјава
         </button>
@@ -84,7 +84,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <ToastProvider>
       <div className="flex min-h-dvh">
-        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface p-3 md:flex">
+        <aside className="sticky top-0 hidden h-dvh w-[230px] shrink-0 flex-col overflow-y-auto bg-sidebar p-3 text-sidebar-fg md:flex">
           {sidebarInner}
         </aside>
 
@@ -92,7 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="fixed inset-0 z-40 md:hidden" onClick={() => setOpen(false)}>
             <div className="absolute inset-0 bg-black/40" />
             <aside
-              className="absolute left-0 top-0 flex h-full w-64 flex-col border-r border-border bg-surface p-3"
+              className="absolute left-0 top-0 flex h-full w-[260px] flex-col overflow-y-auto bg-sidebar p-3 text-sidebar-fg"
               onClick={(e) => e.stopPropagation()}
             >
               {sidebarInner}
