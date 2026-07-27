@@ -81,7 +81,7 @@ export interface AnalyticsData {
   kpis: Kpis;
   trend: TrendPoint[];
   top: RecipeStat[];
-  neverSold: string[];
+  neverSold: { id: string; name: string }[];
   abc: AbcRow[];
   stockDays: StockDayRow[];
   foodCost: FoodCostRow[];
@@ -250,7 +250,11 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
   const ranked = [...stats.values()].sort(
     (a, b) => b.revenue - a.revenue || a.name.localeCompare(b.name),
   );
-  const neverSold = recipes.filter((r) => !stats.has(r.id)).map((r) => r.name).sort();
+  // Keyed by id, not name — duplicate recipe names exist and collide as React keys.
+  const neverSold = recipes
+    .filter((r) => !stats.has(r.id))
+    .map((r) => ({ id: r.id, name: r.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   // ── ABC: A = recipes making the first 70% of revenue, B to 90%, C the rest ──
   const totalRanked = ranked.reduce((s, r) => s + r.revenue, 0);

@@ -73,7 +73,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function ValueTable({ rows, empty }: { rows: { category: string; value: number }[]; empty: string }) {
   if (rows.length === 0) return <p className="text-sm text-muted">{empty}</p>;
   return (
-    <div className="overflow-x-auto">
+    // max-h-72 matches the ABC and Денови залиха cards above, so the row reads
+    // as one band instead of two cards of different heights.
+    <div className="max-h-72 overflow-x-auto overflow-y-auto">
       <table className="w-full text-sm">
         <tbody>
           {rows.map((r) => (
@@ -356,9 +358,9 @@ export default function AnalyticsPage() {
                 <p className="text-sm text-muted">Сите рецепти имаат продажби. Одлично.</p>
               ) : (
                 <ul className="max-h-72 divide-y divide-border overflow-y-auto text-sm">
-                  {data.neverSold.map((name) => (
-                    <li key={name} className="py-1.5">
-                      {name}
+                  {data.neverSold.map((r) => (
+                    <li key={r.id} className="py-1.5">
+                      {r.name}
                     </li>
                   ))}
                 </ul>
