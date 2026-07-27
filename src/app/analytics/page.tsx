@@ -24,7 +24,7 @@ const WASTE_TARGET_PCT = 5; // above this, waste is a problem not a rounding err
 const ABC_TONE = { A: 'green', B: 'yellow', C: 'red' } as const;
 const ABC_TEXT = {
   A: 'text-success',
-  B: 'text-yellow-600 dark:text-yellow-500',
+  B: 'text-yellow-700 dark:text-yellow-500',
   C: 'text-danger',
 } as const;
 
