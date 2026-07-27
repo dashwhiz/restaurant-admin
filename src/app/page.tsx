@@ -8,20 +8,23 @@ import { useToast } from '@/components/ui/Toast';
 import { fmtMKD } from '@/lib/format';
 import { listProducts } from '@/lib/services/products';
 import { listRecipes } from '@/lib/services/recipes';
+import { recentActivity, timeAgo, type ActivityEntry } from '@/lib/services/activity';
 import type { Product } from '@/lib/types';
 
 export default function DashboardPage() {
   const toast = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [recipeCount, setRecipeCount] = useState(0);
+  const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        const [p, r] = await Promise.all([listProducts(), listRecipes()]);
+        const [p, r, a] = await Promise.all([listProducts(), listRecipes(), recentActivity()]);
         setProducts(p);
         setRecipeCount(r.length);
+        setActivity(a);
       } catch (e) {
         toast('Грешка при вчитување: ' + (e as Error).message, 'error');
       } finally {
@@ -36,7 +39,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Почетна" subtitle="Преглед на состојбата" />
+      <PageHeader title="Контролна табла" subtitle="Преглед на состојбата" />
 
       {loading ? (
         <p className="text-sm text-muted">Вчитување…</p>
@@ -68,6 +71,31 @@ export default function DashboardPage() {
                         {p.current_stock} / {p.min_stock} {p.unit}
                       </span>
                     </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="card mt-5">
+            <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted">
+              Последни активности
+            </h2>
+            {activity.length === 0 ? (
+              <p className="text-sm text-muted">Сè уште нема активности.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {activity.map((a) => (
+                  <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Badge
+                        tone={a.kind === 'sale' ? 'green' : a.kind === 'delivery' ? 'blue' : 'red'}
+                      >
+                        {a.kind === 'sale' ? 'Продажба' : a.kind === 'delivery' ? 'Испорака' : 'Отпад'}
+                      </Badge>
+                      <span className="truncate">{a.text}</span>
+                    </span>
+                    <span className="shrink-0 text-muted">{timeAgo(a.at)}</span>
                   </li>
                 ))}
               </ul>

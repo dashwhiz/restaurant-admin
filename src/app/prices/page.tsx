@@ -5,7 +5,7 @@ import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { IconSearch } from '@/components/ui/Icons';
-import { fmtMKD, num } from '@/lib/format';
+import { fmtMKD, num, departmentOf } from '@/lib/format';
 import { listRecipes, listAllIngredients, updateRecipePrice } from '@/lib/services/recipes';
 import type { Recipe } from '@/lib/types';
 
@@ -15,6 +15,7 @@ export default function PricesPage() {
   const [costByRecipe, setCostByRecipe] = useState<Record<string, number>>({});
   const [prices, setPrices] = useState<Record<string, string>>({});
   const [query, setQuery] = useState('');
+  const [dept, setDept] = useState<'all' | 'Бар' | 'Кујна'>('all');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -43,8 +44,12 @@ export default function PricesPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? recipes.filter((r) => r.name.toLowerCase().includes(q)) : recipes;
-  }, [recipes, query]);
+    return recipes.filter((r) => {
+      if (q && !r.name.toLowerCase().includes(q)) return false;
+      if (dept !== 'all' && departmentOf(r.category) !== dept) return false;
+      return true;
+    });
+  }, [recipes, query, dept]);
 
   const changed = recipes.filter((r) => num(prices[r.id]) !== (r.selling_price ?? 0));
 
@@ -72,6 +77,18 @@ export default function PricesPage() {
           </button>
         }
       />
+
+      <div className="mb-3 flex flex-wrap gap-1">
+        {(['all', 'Бар', 'Кујна'] as const).map((d) => (
+          <button
+            key={d}
+            className={dept === d ? 'btn-ghost border-primary text-primary' : 'btn-ghost'}
+            onClick={() => setDept(d)}
+          >
+            {d === 'all' ? 'Сите оддели' : d}
+          </button>
+        ))}
+      </div>
 
       <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-surface px-3">
         <IconSearch className="h-4 w-4 text-muted" />

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
 import { useToast } from '@/components/ui/Toast';
 import { IconSearch } from '@/components/ui/Icons';
-import { num } from '@/lib/format';
+import { num, fmtMKD, departmentOf } from '@/lib/format';
 import { listProducts, updateProduct } from '@/lib/services/products';
 import type { Product } from '@/lib/types';
 
@@ -22,6 +22,9 @@ export default function KaloPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [edits, setEdits] = useState<Record<string, Edit>>({});
   const [query, setQuery] = useState('');
+  const [dept, setDept] = useState<'all' | 'Бар' | 'Кујна'>('all');
+  const [calcId, setCalcId] = useState('');
+  const [calcQty, setCalcQty] = useState('200');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -48,8 +51,35 @@ export default function KaloPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? products.filter((p) => p.name.toLowerCase().includes(q)) : products;
-  }, [products, query]);
+    return products.filter((p) => {
+      if (q && !p.name.toLowerCase().includes(q)) return false;
+      if (dept !== 'all' && departmentOf(p.department || p.category) !== dept) return false;
+      return true;
+    });
+  }, [products, query, dept]);
+
+  // Works backwards from a recipe portion to the raw quantity you must buy:
+  // the portion is what's left AFTER defrost and trim losses.
+  const calc = useMemo(() => {
+    const product = products.find((p) => p.id === calcId);
+    const qty = num(calcQty);
+    if (!product || qty <= 0) return null;
+    const defrost = product.kalo_defrost ?? 0;
+    const trim = product.kalo_trim ?? 0;
+    const totalYield = (1 - defrost / 100) * (1 - trim / 100);
+    const raw = totalYield > 0 ? qty / totalYield : qty;
+    const cost = product.cost_per_unit ?? 0;
+    return {
+      product,
+      qty,
+      defrost,
+      trim,
+      raw,
+      lossPct: (1 - totalYield) * 100,
+      costPortion: qty * cost,
+      costRaw: raw * cost,
+    };
+  }, [products, calcId, calcQty]);
 
   const changed = products.filter((p) => {
     const e = edits[p.id];
@@ -85,6 +115,87 @@ export default function KaloPage() {
           </button>
         }
       />
+
+      <div className="card mb-4">
+        <h2 className="mb-1 text-sm font-bold uppercase tracking-wide text-muted">Калкулатор</h2>
+        <p className="mb-3 text-xs text-muted">
+          Колку сурово треба да набавиш за дадена порција во рецептот — порцијата е тоа што
+          останува ПОСЛЕ одмрзнување и чистење.
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <select
+            className="select sm:flex-1"
+            aria-label="Производ"
+            value={calcId}
+            onChange={(e) => setCalcId(e.target.value)}
+          >
+            <option value="">Избери производ…</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <input
+            className="input sm:w-32"
+            type="number"
+            min="0"
+            aria-label="Количина"
+            value={calcQty}
+            onChange={(e) => setCalcQty(e.target.value)}
+          />
+        </div>
+
+        {calc && (
+          <dl className="mt-3 grid gap-1 border-t border-border pt-3 text-sm">
+            <div className="flex justify-between gap-2">
+              <dt className="text-muted">Порција во рецептот</dt>
+              <dd className="font-semibold">{calc.qty} {calc.product.unit}</dd>
+            </div>
+            {calc.defrost > 0 && (
+              <div className="flex justify-between gap-2">
+                <dt className="text-muted">Кало одмрзнување</dt>
+                <dd className="text-warning">{calc.defrost}%</dd>
+              </div>
+            )}
+            {calc.trim > 0 && (
+              <div className="flex justify-between gap-2">
+                <dt className="text-muted">Кало чистење</dt>
+                <dd className="text-warning">{calc.trim}%</dd>
+              </div>
+            )}
+            <div className="flex justify-between gap-2 border-t border-border pt-1">
+              <dt className="font-semibold">Треба да набавиш</dt>
+              <dd className="font-bold">
+                {calc.raw.toFixed(1)} {calc.product.unit}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-muted">Вкупно кало</dt>
+              <dd className={calc.lossPct > 0 ? 'text-danger' : ''}>{calc.lossPct.toFixed(1)}%</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-muted">Вистински кост</dt>
+              <dd className="font-semibold">
+                {fmtMKD(calc.costRaw)}
+                {calc.costRaw > calc.costPortion && (
+                  <span className="text-muted"> (наместо {fmtMKD(calc.costPortion)})</span>
+                )}
+              </dd>
+            </div>
+          </dl>
+        )}
+      </div>
+
+      <div className="mb-3 flex flex-wrap gap-1">
+        {(['all', 'Бар', 'Кујна'] as const).map((d) => (
+          <button
+            key={d}
+            className={dept === d ? 'btn-ghost border-primary text-primary' : 'btn-ghost'}
+            onClick={() => setDept(d)}
+          >
+            {d === 'all' ? 'Сите' : d}
+          </button>
+        ))}
+      </div>
 
       <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-surface px-3">
         <IconSearch className="h-4 w-4 text-muted" />

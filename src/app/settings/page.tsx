@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/Toast';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { getSession, requireAuth, signOut } from '@/lib/services/auth';
 import { getTableCounts, probeScanner, type TableCount } from '@/lib/services/health';
-import { clearAllData } from '@/lib/services/admin';
+import { clearAllData, clearSection, CLEARABLE, type ClearableKey } from '@/lib/services/admin';
 import { BACKUP_TABLES, exportAllTables } from '@/lib/services/backup';
 import { fmtDateTime } from '@/lib/format';
 import { getTheme, setTheme, THEME_LABELS, type Theme } from '@/lib/theme';
@@ -20,6 +20,7 @@ const isDev = process.env.NODE_ENV !== 'production';
 export default function SettingsPage() {
   const toast = useToast();
   const [wiping, setWiping] = useState(false);
+  const [clearing, setClearing] = useState<ClearableKey | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [counts, setCounts] = useState<TableCount[] | null>(null);
   const [scannerOk, setScannerOk] = useState<boolean | null>(null);
@@ -71,6 +72,20 @@ export default function SettingsPage() {
     } finally {
       setBackingUp(false);
       setProgress('');
+    }
+  }
+
+  async function clearOne(key: ClearableKey, label: string) {
+    if (!confirm(`Избриши ги сите: ${label}?\n\nОваа акција НЕ МОЖЕ да се поништи.`)) return;
+    setClearing(key);
+    try {
+      await clearSection(key);
+      toast(`Избришано: ${label}`, 'success');
+      runChecks();
+    } catch (e) {
+      toast('Грешка: ' + (e as Error).message, 'error');
+    } finally {
+      setClearing(null);
     }
   }
 
@@ -215,6 +230,27 @@ export default function SettingsPage() {
           <button className="btn-primary" onClick={backup} disabled={backingUp}>
             {backingUp ? `Презема… ${progress}` : 'Преземи резервна копија (CSV)'}
           </button>
+        </div>
+
+        <div className="card">
+          <h2 className="mb-1 text-sm font-bold uppercase tracking-wide text-muted">
+            Исчисти по секција
+          </h2>
+          <p className="mb-3 text-xs text-muted">
+            Брише само една област — обично кога увоз тргнал наопаку. Не може да се врати.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {CLEARABLE.map((s) => (
+              <button
+                key={s.key}
+                className="btn-ghost"
+                disabled={clearing !== null}
+                onClick={() => clearOne(s.key, s.label)}
+              >
+                {clearing === s.key ? 'Брише…' : s.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="card border-danger/40">

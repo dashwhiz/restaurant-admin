@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
 import { useToast } from '@/components/ui/Toast';
 import { IconSearch } from '@/components/ui/Icons';
-import { num } from '@/lib/format';
+import { num, departmentOf } from '@/lib/format';
 import { listProducts } from '@/lib/services/products';
 import { submitStocktake, type StocktakeEntry } from '@/lib/services/stocktake';
 import type { Product } from '@/lib/types';
@@ -14,6 +14,7 @@ export default function StocktakePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [query, setQuery] = useState('');
+  const [dept, setDept] = useState<'all' | 'Бар' | 'Кујна'>('all');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -35,8 +36,12 @@ export default function StocktakePage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? products.filter((p) => p.name.toLowerCase().includes(q)) : products;
-  }, [products, query]);
+    return products.filter((p) => {
+      if (q && !p.name.toLowerCase().includes(q)) return false;
+      if (dept !== 'all' && departmentOf(p.department || p.category) !== dept) return false;
+      return true;
+    });
+  }, [products, query, dept]);
 
   const entered = Object.entries(counts).filter(([, v]) => v !== '');
 
@@ -72,6 +77,18 @@ export default function StocktakePage() {
           </button>
         }
       />
+
+      <div className="mb-3 flex flex-wrap gap-1">
+        {(['all', 'Бар', 'Кујна'] as const).map((d) => (
+          <button
+            key={d}
+            className={dept === d ? 'btn-ghost border-primary text-primary' : 'btn-ghost'}
+            onClick={() => setDept(d)}
+          >
+            {d === 'all' ? 'Сите' : d}
+          </button>
+        ))}
+      </div>
 
       <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-surface px-3">
         <IconSearch className="h-4 w-4 text-muted" />

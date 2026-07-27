@@ -5,7 +5,7 @@ import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { IconPlus, IconEdit, IconTrash, IconSearch } from '@/components/ui/Icons';
-import { fmtMKD } from '@/lib/format';
+import { fmtMKD, departmentOf } from '@/lib/format';
 import { exportCsv } from '@/lib/csv';
 import { listProducts, deleteProduct } from '@/lib/services/products';
 import type { Product } from '@/lib/types';
@@ -16,6 +16,10 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
+  // Same three filters the old app had above this table.
+  const [dept, setDept] = useState<'all' | 'Бар' | 'Кујна'>('all');
+  const [category, setCategory] = useState('all');
+  const [status, setStatus] = useState<'all' | 'low' | 'out' | 'ok'>('all');
   const [dialog, setDialog] = useState<{ open: boolean; product: Product | null }>({
     open: false,
     product: null,
@@ -36,13 +40,27 @@ export default function ProductsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const categories = useMemo(
+    () => [...new Set(products.map((p) => p.category).filter(Boolean))].sort(),
+    [products],
+  );
+
+  function statusOf(p: Product): 'out' | 'low' | 'ok' {
+    if (p.current_stock <= 0) return 'out';
+    if (p.min_stock > 0 && p.current_stock <= p.min_stock) return 'low';
+    return 'ok';
+  }
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q),
-    );
-  }, [products, query]);
+    return products.filter((p) => {
+      if (q && !p.name.toLowerCase().includes(q) && !p.category.toLowerCase().includes(q)) return false;
+      if (dept !== 'all' && departmentOf(p.department || p.category) !== dept) return false;
+      if (category !== 'all' && p.category !== category) return false;
+      if (status !== 'all' && statusOf(p) !== status) return false;
+      return true;
+    });
+  }, [products, query, dept, category, status]);
 
   async function remove(p: Product) {
     if (!confirm(`Избриши "${p.name}"?\nОва ги брише и поврзаните записи.`)) return;
@@ -88,14 +106,50 @@ export default function ProductsPage() {
         }
       />
 
-      <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-surface px-3">
-        <IconSearch className="h-4 w-4 text-muted" />
-        <input
-          className="w-full bg-transparent py-2 text-sm outline-none"
-          placeholder="Пребарувај по назив или категорија…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+      <div className="mb-3 flex flex-wrap gap-1">
+        {(['all', 'Бар', 'Кујна'] as const).map((d) => (
+          <button
+            key={d}
+            className={dept === d ? 'btn-ghost border-primary text-primary' : 'btn-ghost'}
+            onClick={() => setDept(d)}
+          >
+            {d === 'all' ? 'Сите' : d}
+          </button>
+        ))}
+      </div>
+
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-surface px-3">
+          <IconSearch className="h-4 w-4 text-muted" />
+          <input
+            className="w-full bg-transparent py-2 text-sm outline-none"
+            placeholder="Пребарувај по назив или категорија…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <select
+          className="select w-auto"
+          aria-label="Категорија"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+        >
+          <option value="all">Сите категории</option>
+          {categories.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+        <select
+          className="select w-auto"
+          aria-label="Статус"
+          value={status}
+          onChange={(e) => setStatus(e.target.value as typeof status)}
+        >
+          <option value="all">Сите статуси</option>
+          <option value="low">Мала залиха</option>
+          <option value="out">Нема залиха</option>
+          <option value="ok">Во ред</option>
+        </select>
       </div>
 
       <div className="card overflow-x-auto p-0">
