@@ -1,11 +1,31 @@
 'use client';
 
+import { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Badge } from '@/components/ui/Badge';
+import { useToast } from '@/components/ui/Toast';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { requireAuth, signOut } from '@/lib/services/auth';
+import { clearAllData } from '@/lib/services/admin';
 
 export default function SettingsPage() {
+  const toast = useToast();
+  const [wiping, setWiping] = useState(false);
+
+  async function wipe() {
+    if (!confirm('ВНИМАНИЕ: ова ги брише СИТЕ податоци (производи, рецепти, продажби, испораки, отпад, попис, настани, POS увози). Не може да се врати. Продолжи?')) return;
+    if (!confirm('Последна потврда — избриши сè?')) return;
+    setWiping(true);
+    try {
+      await clearAllData();
+      toast('Сите податоци се избришани', 'success');
+    } catch (e) {
+      toast('Грешка: ' + (e as Error).message, 'error');
+    } finally {
+      setWiping(false);
+    }
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   let host = '—';
   try {
@@ -46,6 +66,16 @@ export default function SettingsPage() {
               Одјави се
             </button>
           )}
+        </div>
+
+        <div className="card border-danger/40">
+          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-danger">Опасна зона</h2>
+          <p className="mb-3 text-xs text-muted">
+            Ги брише сите податоци од базата. За тестирање. Не може да се врати.
+          </p>
+          <button className="btn-danger" onClick={wipe} disabled={wiping}>
+            {wiping ? 'Бришење…' : 'Избриши ги сите податоци'}
+          </button>
         </div>
       </div>
     </>

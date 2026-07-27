@@ -52,6 +52,15 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Clickable things get a pointer cursor (modern CSS resets remove it). */
+button:not(:disabled),
+[role='button'],
+label[for],
+summary,
+select:not(:disabled) {
+  cursor: pointer;
+}
+
 /* A few shared component classes so markup stays clean. In Tailwind v4 @apply
    can only reference real utilities, not other custom classes — so each button
    variant lists its full utility set (the shared base is intentionally repeated). */
