@@ -101,8 +101,11 @@ deployable as a **static export** (GitHub Pages) later. Full detail in
 
 **DON'T**
 
-- Don't add a state-management, data-fetching, CSS-in-JS, or component library.
-  The stack is intentionally **Next.js + React + Tailwind + supabase-js** — nothing more.
+- Don't add a library that duplicates something the stack already does well.
+  A new dependency has to earn its place: it should solve a problem that would
+  otherwise take real work, not save five lines. Keep the count low, prefer the
+  boring option, and **always** run the security check below first.
+  Current runtime stack: **Next.js + React + Tailwind + supabase-js + recharts**.
 - Don't put Supabase queries or business logic in components.
 - Don't use `dangerouslySetInnerHTML`.
 - Don't add server-only Next features (API routes, server actions, server-side

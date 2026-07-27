@@ -17,6 +17,9 @@ const base = {
 export const IconDashboard = (p: P) => (
   <svg {...base} {...p}><path d="M3 13h8V3H3zM13 21h8v-8h-8zM3 21h8v-6H3zM13 11h8V3h-8z" /></svg>
 );
+export const IconChart = (p: P) => (
+  <svg {...base} {...p}><path d="M3 3v18h18M7 15v3M12 10v8M17 6v12" /></svg>
+);
 export const IconBox = (p: P) => (
   <svg {...base} {...p}><path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8" /></svg>
 );

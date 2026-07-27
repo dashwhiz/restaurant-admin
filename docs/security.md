@@ -12,7 +12,16 @@ Supply-chain attacks on npm are real. **Before adding any package:**
 4. Run `npm audit`. **`npm audit --omit=dev` (runtime) must be clean.**
 
 Keep dependencies minimal. Current runtime deps: `next`, `react`, `react-dom`,
-`@supabase/supabase-js`. Everything else is dev-only (TypeScript, ESLint, Tailwind).
+`@supabase/supabase-js`, `recharts`. Everything else is dev-only (TypeScript,
+ESLint, Tailwind).
+
+**`recharts` is pinned to an exact version (`3.9.2`, no `^`).** Charting packages
+were actively targeted through compromised maintainer accounts in 2026
+(`echarts-for-react`, `@antv/f-charts`, `@antv/chart-node-g6` all shipped malware
+in the May 2026 wave), and `recharts-smart` is a known malware typosquat of it.
+When bumping it, **don't take a release that is only days old** — let it sit long
+enough to be scrutinised, and re-run the check above. Note it also pulls redux
+(`@reduxjs/toolkit`, `react-redux`) in transitively.
 
 ## Current audit state
 

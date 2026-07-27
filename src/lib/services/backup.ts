@@ -1,11 +1,7 @@
 // Download every table as CSV, so there's a copy of the data outside Supabase.
 // One file per table: the tables have different columns, and a merged file
 // wouldn't open usefully in Excel.
-import { getSupabase } from '@/lib/supabase';
-
-// Supabase caps a single request at 1000 rows. Anything bigger must be paged,
-// or the backup silently holds only the first page — worse than no backup.
-const PAGE = 1000;
+import { fetchAllRows } from './paged';
 
 export const BACKUP_TABLES = [
   'products',
@@ -23,17 +19,6 @@ export const BACKUP_TABLES = [
 ] as const;
 
 type Row = Record<string, unknown>;
-
-async function fetchAll(table: string): Promise<Row[]> {
-  const sb = getSupabase();
-  const rows: Row[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await sb.from(table).select('*').range(from, from + PAGE - 1);
-    if (error) throw error;
-    rows.push(...((data ?? []) as Row[]));
-    if (!data || data.length < PAGE) return rows;
-  }
-}
 
 function escape(value: unknown): string {
   if (value === null || value === undefined) return '';
@@ -89,7 +74,7 @@ export async function exportAllTables(
 
   for (const [i, table] of BACKUP_TABLES.entries()) {
     onProgress?.({ done: i, total: BACKUP_TABLES.length, table });
-    const rows = await fetchAll(table);
+    const rows = await fetchAllRows<Row>(table);
     if (rows.length === 0) {
       empty.push(table);
       continue;

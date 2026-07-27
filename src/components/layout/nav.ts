@@ -12,6 +12,7 @@ import {
   IconScan,
   IconTag,
   IconScale,
+  IconChart,
   IconSettings,
 } from '@/components/ui/Icons';
 
@@ -57,6 +58,10 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: '/imports', label: 'POS увоз', icon: IconImport },
       { href: '/scan', label: 'Скенирај фактура', icon: IconScan },
     ],
+  },
+  {
+    title: 'Преглед',
+    items: [{ href: '/analytics', label: 'Аналитика', icon: IconChart }],
   },
   {
     title: 'Систем',
