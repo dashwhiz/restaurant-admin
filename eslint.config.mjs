@@ -13,6 +13,19 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Loading data in a useEffect and setting state is the intended pattern
+      // for this client-side app. The React-Compiler rule is kept as a signal,
+      // not a build-blocker (mirrors the admin-tool project's policy).
+      "react-hooks/set-state-in-effect": "warn",
+      // Allow intentionally-unused vars/args prefixed with _.
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

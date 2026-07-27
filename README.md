@@ -1,36 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lira Inventory
 
-## Getting Started
+Inventory, sales and cost tracking for the Lira gostilnica. Rewrite of the old
+single-file HTML app, using the **same Supabase database**.
 
-First, run the development server:
+> Contributor & AI-agent guidance: [`AGENTS.md`](./AGENTS.md).
+> Deeper docs: [`docs/`](./docs).
+
+---
+
+## Run it on your computer (step by step)
+
+You only need to do steps 1–2 **once**.
+
+### 1. Install Node.js (once)
+
+Download the **LTS** version from <https://nodejs.org> and install it (just keep
+clicking Next). This gives you `node` and `npm`.
+
+To check it worked, open a terminal (in VS Code: **Terminal → New Terminal**) and run:
+
+```bash
+node -v
+```
+
+You should see a version number like `v26.x`.
+
+### 2. Install the app's building blocks (once)
+
+In the terminal, make sure you're inside this folder, then run:
+
+```bash
+npm install
+```
+
+This downloads everything the app needs. It can take a minute.
+
+### 3. Start the app
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open **<http://localhost:3000>** in your browser. That's it.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+To stop the app, press **Ctrl + C** in the terminal. To start it again next
+time, just run `npm run dev` again.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## The connection settings (`.env.local`)
 
-To learn more about Next.js, take a look at the following resources:
+The app connects to your Supabase database using two values kept in a file
+called `.env.local`. **It's already filled in for you.** You only need to touch
+it if the database keys change.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+If you ever need to recreate it: copy `.env.local.example` to `.env.local` and
+paste your values from Supabase (**Settings → API**):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `NEXT_PUBLIC_SUPABASE_URL` — the project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — the public "anon" key
+- `NEXT_PUBLIC_ANTHROPIC_API_KEY` — (optional) only for invoice scanning
 
-## Deploy on Vercel
+This file is private — it is never uploaded to GitHub.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Making changes with Claude Code
+
+Open this folder in VS Code and talk to Claude Code. It reads
+[`AGENTS.md`](./AGENTS.md) and the `docs/` automatically, so it knows how the
+project is organized and how you like to work. When you ask for a change:
+
+- For anything non-trivial, it will plan with you first (in plain language)
+  before writing code.
+- After a big feature it runs a full code review; small tweaks get a quick
+  review.
+- It verifies changes build and run before telling you they're done.
+
+See [`docs/running-locally.md`](./docs/running-locally.md) for the one-time
+Claude Code setup (installing the "superpowers" skills).
+
+---
+
+## Everyday commands
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the app for local use (what you'll use daily) |
+| `npm run build` | Check the whole project compiles with no errors |
+| `npm run lint` | Check code style |
+
+There are no automated tests yet — the app is checked by building and by using it.

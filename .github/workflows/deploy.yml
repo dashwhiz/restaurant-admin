@@ -1,0 +1,54 @@
+name: Deploy to GitHub Pages
+
+# Builds the static site and publishes it to GitHub Pages on every push to main.
+# One-time setup in the repo:
+#   1. Settings → Pages → Build and deployment → Source = "GitHub Actions".
+#   2. Settings → Secrets and variables → Actions → add two repository secrets:
+#        NEXT_PUBLIC_SUPABASE_URL       (your Supabase project URL)
+#        NEXT_PUBLIC_SUPABASE_ANON_KEY  (your Supabase anon key — public by design)
+#   3. Run rls.sql in Supabase and create one login user (see docs/deploy.md),
+#      because the deployed build requires login (NEXT_PUBLIC_REQUIRE_AUTH=true).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          BASE_PATH: /restaurant-admin
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_REQUIRE_AUTH: 'true'
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
