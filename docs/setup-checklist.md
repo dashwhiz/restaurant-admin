@@ -100,12 +100,13 @@ While testing, you don't need this — just run locally (see
      on every table).
    - **Authentication → Users → Add user** — create the email + password you'll
      log in with (there is no public sign-up).
-2. **GitHub → repo Settings → Pages** → set **Source = "GitHub Actions"**.
-3. **GitHub → repo Settings → Secrets and variables → Actions** → add:
-   - `NEXT_PUBLIC_SUPABASE_URL` = `https://sawvyrwtnwrqiwhnzypw.supabase.co`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = the anon key (from Supabase → Settings → API)
+2. ~~**GitHub → repo Settings → Pages** → set **Source = "GitHub Actions"**.~~ ✅ done
+3. ~~**GitHub → repo Settings → Secrets and variables → Actions** → add
+   `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.~~ ✅ done
 4. **Push to `main`** (or re-run the workflow). The site builds and appears at
    `https://dashwhiz.github.io/restaurant-admin/`.
+
+Only **step 1 (RLS + login user)** is left before the public site is safe to use.
 
 Full explanation: [`deploy.md`](./deploy.md) and [`security.md`](./security.md).
 
@@ -114,10 +115,10 @@ Full explanation: [`deploy.md`](./deploy.md) and [`security.md`](./security.md).
 
 ---
 
-## D. Add the friend as a collaborator
+## D. Add the friend as a collaborator ✅ done
 
-GitHub → repo **Settings → Collaborators** → add his account. He can then clone
-the repo, run it locally, and let Claude Code make changes for him.
+Added under GitHub → repo **Settings → Collaborators** — he can clone the repo,
+run it locally, and let Claude Code make changes for him.
 
 ---
 
@@ -131,6 +132,3 @@ the repo, run it locally, and let Claude Code make changes for him.
 | `ANTHROPIC_API_KEY` secret | `supabase secrets set` | scanner | ☐ |
 | Deploy `scan-invoice` | `supabase functions deploy` | scanner | ☐ |
 | RLS + login user | Supabase | public deploy | ☐ |
-| Pages source = Actions | GitHub Settings | public deploy | ☐ |
-| Actions secrets (2) | GitHub Settings | public deploy | ☐ |
-| Add collaborator | GitHub Settings | friend access | ☐ |
