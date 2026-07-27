@@ -81,11 +81,15 @@ export default function SalesPage() {
     }
   }
 
-  const row = (s: SaleRow) => (
+  const row = (s: SaleRow) => {
+    // The daily import stamps "POS <date>" — redundant here since the day is in
+    // the header. Hide it, but keep any real note a manual sale carries.
+    const note = s.notes && !/^POS \d{4}-\d{2}-\d{2}$/.test(s.notes) ? s.notes : null;
+    return (
     <div key={s.id} className="flex items-center gap-2 border-b border-border/60 py-2 text-sm last:border-0">
       <div className="min-w-0 flex-1">
         <span className="font-semibold">{s.recipe?.name ?? '?'}</span>
-        {s.notes && <span className="text-muted"> · {s.notes}</span>}
+        {note && <span className="text-muted"> · {note}</span>}
       </div>
       <span className="whitespace-nowrap font-medium">{s.quantity}×</span>
       <button className="btn-ghost px-2 py-1" onClick={() => setDialog({ open: true, row: s })} aria-label="Измени">
@@ -95,7 +99,8 @@ export default function SalesPage() {
         <IconTrash className="h-4 w-4" />
       </button>
     </div>
-  );
+    );
+  };
 
   const section = (label: string, list: SaleRow[], tone: { border: string; text: string }) =>
     list.length === 0 ? null : (
