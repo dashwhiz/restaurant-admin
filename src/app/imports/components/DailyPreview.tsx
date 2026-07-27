@@ -8,7 +8,7 @@ import { IconSearch } from '@/components/ui/Icons';
 import { fmtMKD, fmtDate } from '@/lib/format';
 import { listRecipes } from '@/lib/services/recipes';
 import { createEvent } from '@/lib/services/events';
-import { getMappings, saveMapping, importDaily, type DailySaleInput } from '@/lib/services/imports';
+import { getMappings, saveMappings, importDaily, type DailySaleInput, type MappingInput } from '@/lib/services/imports';
 import { bestMatch, isSpecialOrder } from '@/lib/pos/match';
 import type { ParsedDaily } from '@/lib/pos/parse';
 import type { Recipe } from '@/lib/types';
@@ -61,12 +61,17 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
   async function confirm() {
     setBusy(true);
     try {
-      // Remember every resolution so the same šifra auto-matches next time.
-      for (const it of parsed.items) {
-        const r = resolutions[it.sifra];
-        if (r === SKIP) await saveMapping(it.sifra, null, true);
-        else if (r) await saveMapping(it.sifra, r, false);
-      }
+      // Remember every resolution (one batched write) so the same šifra
+      // auto-matches next time. Undecided rows ('') are not saved.
+      const entries: MappingInput[] = parsed.items
+        .filter((it) => resolutions[it.sifra])
+        .map((it) => {
+          const r = resolutions[it.sifra];
+          return r === SKIP
+            ? { sifra: it.sifra, recipe_id: null, skip: true }
+            : { sifra: it.sifra, recipe_id: r, skip: false };
+        });
+      await saveMappings(entries);
       const items: DailySaleInput[] = parsed.items
         .filter((i) => resolutions[i.sifra] && resolutions[i.sifra] !== SKIP)
         .map((i) => ({ recipeId: resolutions[i.sifra], qty: i.qty }));
