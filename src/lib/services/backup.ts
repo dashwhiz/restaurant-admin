@@ -17,6 +17,7 @@ export const BACKUP_TABLES = [
   'pos_imports',
   'pos_sales_items',
   'pos_mappings',
+  'scan_mappings',
 ] as const;
 
 type Row = Record<string, unknown>;

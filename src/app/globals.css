@@ -5,13 +5,6 @@
    border-border, bg-primary, …). Always use these tokens, never hardcoded hex. */
 :root {
   color-scheme: light;
-  /* The sidebar is dark in both themes — that was the old app's look, and it's
-     what the owner recognises. The old app used #374151 for the section titles,
-     which is nearly invisible on this background; --sidebar-muted is a readable
-     step instead. */
-  --sidebar: #111827;
-  --sidebar-fg: #e5e7eb;
-  --sidebar-muted: #9ca3af;
   --background: #f6f6f4;
   --surface: #ffffff;
   --foreground: #1b1b1d;
@@ -67,9 +60,6 @@
   --color-border: var(--border);
   --color-primary: var(--primary);
   --color-primary-fg: var(--primary-fg);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-fg: var(--sidebar-fg);
-  --color-sidebar-muted: var(--sidebar-muted);
   --color-danger: var(--danger);
   --color-warning: var(--warning);
   --color-success: var(--success);

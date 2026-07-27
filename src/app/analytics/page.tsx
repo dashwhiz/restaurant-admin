@@ -19,6 +19,15 @@ const RANGES = [
 const FOOD_COST_TARGET = 35; // above this, food cost is eating the margin
 const WASTE_TARGET_PCT = 5; // above this, waste is a problem not a rounding error
 
+// A = carries the revenue, B = the middle, C = the tail. The letter is still the
+// real signal — the colour just makes the three groups scannable at a glance.
+const ABC_TONE = { A: 'green', B: 'blue', C: 'red' } as const;
+const ABC_TEXT = {
+  A: 'text-success',
+  B: 'text-blue-600 dark:text-blue-400',
+  C: 'text-danger',
+} as const;
+
 // This page pulls eight tables in full, so it's the one place where refetching
 // on every visit is worth avoiding. Cached per range; the refresh button forces
 // a reload, and the TTL stops a tab left open overnight showing yesterday.
@@ -249,12 +258,12 @@ export default function AnalyticsPage() {
                       {data.abc.map((r) => (
                         <tr key={r.id} className="border-b border-border last:border-0">
                           <td className="py-1.5 pr-2">
-                            {/* The letter carries the meaning; yellow would
-                                wrongly imply "needs attention" for a tail item. */}
-                            <Badge tone={r.klass === 'A' ? 'green' : 'gray'}>{r.klass}</Badge>
+                            <Badge tone={ABC_TONE[r.klass]}>{r.klass}</Badge>
                           </td>
-                          <td className="py-1.5 pr-2">{r.name}</td>
-                          <td className="py-1.5 text-right font-semibold">{fmtMKD(r.revenue)}</td>
+                          <td className={`py-1.5 pr-2 ${ABC_TEXT[r.klass]}`}>{r.name}</td>
+                          <td className={`py-1.5 text-right font-semibold ${ABC_TEXT[r.klass]}`}>
+                            {fmtMKD(r.revenue)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -341,17 +350,25 @@ export default function AnalyticsPage() {
             )}
           </Section>
 
-          <Section title={`Рецепти без ниту една продажба (${data.neverSold.length})`}>
-            {data.neverSold.length === 0 ? (
-              <p className="text-sm text-muted">Сите рецепти имаат продажби. Одлично.</p>
-            ) : (
-              <p className="text-sm">{data.neverSold.join(' · ')}</p>
-            )}
-          </Section>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Section title={`Рецепти без продажба во периодот (${data.neverSold.length})`}>
+              {data.neverSold.length === 0 ? (
+                <p className="text-sm text-muted">Сите рецепти имаат продажби. Одлично.</p>
+              ) : (
+                <ul className="max-h-72 divide-y divide-border overflow-y-auto text-sm">
+                  {data.neverSold.map((name) => (
+                    <li key={name} className="py-1.5">
+                      {name}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Section>
 
-          <Section title="Залиха — вредност по категорија">
-            <ValueTable rows={data.inventoryByCategory} empty="Нема залиха." />
-          </Section>
+            <Section title="Залиха — вредност по категорија">
+              <ValueTable rows={data.inventoryByCategory} empty="Нема залиха." />
+            </Section>
+          </div>
 
           <Section title="Отпад — по производ">
             <ValueTable rows={data.wasteByProduct} empty="Нема отпад во периодот." />

@@ -5,6 +5,7 @@
 // purchase, reversibly, through the shared stock helper.
 import { getSupabase } from '@/lib/supabase';
 import { applyStockDelta } from './stock';
+import { normName } from '@/lib/pos/match';
 
 // What the Edge Function returns (one row per invoice line).
 export interface ScanItem {
@@ -33,6 +34,71 @@ export async function scanInvoice(file: File): Promise<ScanResult> {
   return data as ScanResult;
 }
 
+// ── Remembered invoice lines ──────────────────────────────────
+// Suppliers word the same product differently ("Шеќер бел 1кг" vs "Секер 1/1"),
+// so once you've told us which product a line means, remember it per supplier.
+// Same idea as pos_mappings, different domain: purchased products, not recipes.
+//
+// Optional table (a one-time SQL step, like pos_mappings was). Once we learn
+// it's absent we stop asking, so a missing table costs one failed request, not
+// one per scan.
+const TABLE_MISSING = /does not exist|find the table|relation|schema cache/i;
+let scanMappingsMissing = false;
+
+const supplierKey = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
+
+/** Map key for a supplier + invoice line. Names are normalised, so spacing and
+ *  case differences between invoices still hit the same remembered answer. */
+export function scanMapKey(supplier: string | null, lineName: string): string {
+  return `${supplierKey(supplier)}|${normName(lineName)}`;
+}
+
+export async function getScanMappings(): Promise<Map<string, string>> {
+  const remembered = new Map<string, string>();
+  if (scanMappingsMissing) return remembered;
+
+  const { data, error } = await getSupabase()
+    .from('scan_mappings')
+    .select('supplier, line_key, product_id');
+  if (error) {
+    if (TABLE_MISSING.test(error.message)) {
+      scanMappingsMissing = true;
+      return remembered;
+    }
+    throw error;
+  }
+  for (const row of (data ?? []) as { supplier: string | null; line_key: string; product_id: string | null }[]) {
+    if (row.product_id) remembered.set(`${supplierKey(row.supplier)}|${row.line_key}`, row.product_id);
+  }
+  return remembered;
+}
+
+/** Remember which product each invoice line meant. One batched upsert. */
+export async function saveScanMappings(
+  supplier: string | null,
+  entries: { name: string; productId: string }[],
+): Promise<void> {
+  if (scanMappingsMissing || entries.length === 0) return;
+
+  // Postgres rejects an upsert that touches the same key twice, and one invoice
+  // can easily list the same product on two lines — keep the last of each.
+  const byKey = new Map<string, { supplier: string; line_key: string; product_id: string }>();
+  for (const e of entries) {
+    const line_key = normName(e.name);
+    if (!line_key) continue;
+    byKey.set(line_key, { supplier: (supplier ?? '').trim(), line_key, product_id: e.productId });
+  }
+  if (byKey.size === 0) return;
+
+  const { error } = await getSupabase()
+    .from('scan_mappings')
+    .upsert([...byKey.values()], { onConflict: 'supplier,line_key' });
+  if (error) {
+    if (TABLE_MISSING.test(error.message)) scanMappingsMissing = true;
+    else throw error;
+  }
+}
+
 // A reviewed line ready to import. `target` is a product id, or a sentinel.
 export const NEW_PRODUCT = '__new__';
 export const SKIP = '__skip__';
@@ -59,10 +125,16 @@ export class ScanImportError extends Error {
 
 export async function importScannedInvoice(
   lines: ImportLine[],
-  meta: { supplier: string | null; invoiceNumber: string | null },
+  meta: { supplier: string | null; invoiceNumber: string | null; invoiceDate: string | null },
 ): Promise<{ imported: number; created: number }> {
   const sb = getSupabase();
   const note = meta.invoiceNumber ? `Фактура ${meta.invoiceNumber} · Скенирање` : 'Скенирање';
+  // Date the delivery when it actually arrived, not when it was scanned — a
+  // stack of invoices entered on one evening would otherwise all land today and
+  // skew every date-based figure. Midday avoids sliding a day across timezones.
+  const receivedAt = /^\d{4}-\d{2}-\d{2}$/.test(meta.invoiceDate ?? '')
+    ? `${meta.invoiceDate}T12:00:00Z`
+    : null;
   let imported = 0;
   let created = 0;
 
@@ -97,6 +169,9 @@ export async function importScannedInvoice(
         price_with_ddv: line.price_with_ddv,
         supplier: meta.supplier,
         notes: note,
+        // Omitted when the invoice had no readable date — the DB default (now)
+        // is the honest fallback rather than a guess.
+        ...(receivedAt ? { created_at: receivedAt } : {}),
       });
       if (pErr) throw pErr;
 

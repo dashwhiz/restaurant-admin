@@ -24,6 +24,7 @@ const TABLES: { table: string; label: string }[] = [
   { table: 'pos_imports', label: 'POS увози' },
   { table: 'pos_sales_items', label: 'POS ставки' },
   { table: 'pos_mappings', label: 'POS поврзувања' },
+  { table: 'scan_mappings', label: 'Фактури поврзувања' },
 ];
 
 /** Row count per table. `head: true` fetches counts only, never the rows. */

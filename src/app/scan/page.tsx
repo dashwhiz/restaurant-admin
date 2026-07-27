@@ -11,6 +11,9 @@ import { listProducts } from '@/lib/services/products';
 import {
   scanInvoice,
   importScannedInvoice,
+  getScanMappings,
+  saveScanMappings,
+  scanMapKey,
   ScanImportError,
   NEW_PRODUCT,
   SKIP,
@@ -52,12 +55,19 @@ export default function ScanPage() {
   async function onFile(file: File) {
     setPhase('scanning');
     try {
-      const [scan, prods] = await Promise.all([scanInvoice(file), listProducts()]);
+      const [scan, prods, remembered] = await Promise.all([
+        scanInvoice(file),
+        listProducts(),
+        getScanMappings(),
+      ]);
       setProducts(prods);
       setResult(scan);
       setRows(
         scan.items.map((it) => {
-          const m = bestMatch(it.name, prods);
+          // A remembered choice beats a fuzzy guess — you already told us once.
+          const rememberedId = remembered.get(scanMapKey(scan.supplier, it.name));
+          const known = rememberedId ? prods.find((p) => p.id === rememberedId) : undefined;
+          const m = known ? null : bestMatch(it.name, prods);
           return {
             name: it.name,
             quantity: it.quantity != null ? String(it.quantity) : '',
@@ -65,9 +75,9 @@ export default function ScanPage() {
             priceNoDDV: it.price_without_ddv != null ? String(it.price_without_ddv) : '',
             ddvRate: it.ddv_rate != null ? String(it.ddv_rate) : '18',
             priceDDV: it.price_with_ddv != null ? String(it.price_with_ddv) : '',
-            target: m ? m.item.id : NEW_PRODUCT,
-            matchName: m ? m.item.name : null,
-            matchPct: m ? Math.round(m.score * 100) : 0,
+            target: known ? known.id : m ? m.item.id : NEW_PRODUCT,
+            matchName: known ? known.name : m ? m.item.name : null,
+            matchPct: known ? 100 : m ? Math.round(m.score * 100) : 0,
           };
         }),
       );
@@ -129,7 +139,18 @@ export default function ScanPage() {
       const { imported, created } = await importScannedInvoice(lines, {
         supplier: result.supplier,
         invoiceNumber: result.invoice_number,
+        invoiceDate: result.invoice_date,
       });
+      // Remember the confirmed lines so the next invoice from this supplier
+      // arrives already matched. Best-effort: a failure here must not look like
+      // a failed import, because the stock has already moved.
+      await saveScanMappings(
+        result.supplier,
+        rows
+          .filter((r) => r.target !== SKIP && r.target !== NEW_PRODUCT)
+          .map((r) => ({ name: r.name, productId: r.target })),
+      ).catch(() => {});
+
       toast(
         `Увезени ${imported} ставки${created ? ` · создадени ${created} нови производи` : ''}`,
         'success',

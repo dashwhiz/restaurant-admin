@@ -16,6 +16,7 @@ const ORDER = [
   'purchases',
   'recipe_ingredients',
   'pos_mappings',
+  'scan_mappings',
   'recipes',
   'products',
 ];
@@ -41,6 +42,7 @@ export async function clearAllData(): Promise<void> {
 // lists its child tables first so foreign keys don't reject the delete.
 export const CLEARABLE = [
   { key: 'pos', label: 'POS увози', tables: ['pos_sales_items', 'pos_imports'] },
+  { key: 'scanmaps', label: 'Запомнети ставки од фактури', tables: ['scan_mappings'] },
   { key: 'sales', label: 'Продажби', tables: ['sales'] },
   { key: 'purchases', label: 'Испораки', tables: ['purchases'] },
   { key: 'waste', label: 'Отпад', tables: ['waste_log'] },
@@ -54,7 +56,7 @@ export const CLEARABLE = [
   {
     key: 'products',
     label: 'Производи (и сè поврзано)',
-    tables: ['recipe_ingredients', 'purchases', 'waste_log', 'stocktake_log', 'products'],
+    tables: ['recipe_ingredients', 'purchases', 'waste_log', 'stocktake_log', 'scan_mappings', 'products'],
   },
 ] as const;
 

@@ -18,7 +18,7 @@ declare
   tables text[] := array[
     'products', 'recipes', 'recipe_ingredients', 'purchases', 'sales',
     'waste_log', 'stocktake_log', 'events', 'event_menu_items',
-    'pos_imports', 'pos_sales_items', 'pos_mappings'
+    'pos_imports', 'pos_sales_items', 'pos_mappings', 'scan_mappings'
   ];
 begin
   foreach t in array tables loop
