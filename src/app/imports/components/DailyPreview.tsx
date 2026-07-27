@@ -12,8 +12,9 @@ import { getMappings, saveMappings, importDaily, type DailySaleInput, type Mappi
 import { bestMatch, isSpecialOrder } from '@/lib/pos/match';
 import type { ParsedDaily } from '@/lib/pos/parse';
 import type { Recipe } from '@/lib/types';
+import { RecipePicker, SKIP } from './RecipePicker';
 
-const SKIP = '__skip__';
+
 
 export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: () => void }) {
   const toast = useToast();
@@ -154,15 +155,12 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
                     </td>
                     <td className="p-2 text-right">{it.qty}</td>
                     <td className="p-2">
-                      <select
-                        className={`input py-1 ${ok ? '' : 'border-danger'}`}
+                      <RecipePicker
                         value={val}
-                        onChange={(e) => setResolutions((r) => ({ ...r, [it.sifra]: e.target.value }))}
-                      >
-                        <option value="">— избери —</option>
-                        <option value={SKIP}>Прескокни</option>
-                        {recipes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                      </select>
+                        recipes={recipes}
+                        invalid={!ok}
+                        onChange={(next) => setResolutions((r) => ({ ...r, [it.sifra]: next }))}
+                      />
                     </td>
                   </tr>
                 );

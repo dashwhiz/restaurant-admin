@@ -1,6 +1,7 @@
 // Последни активности for the dashboard: the newest sales, deliveries and waste
 // merged into one list, exactly as the old app showed them.
 import { getSupabase } from '@/lib/supabase';
+import { fmtDate } from '@/lib/format';
 
 export type ActivityKind = 'sale' | 'delivery' | 'waste';
 
@@ -76,5 +77,5 @@ export function timeAgo(iso: string): string {
   if (hours < 24) return `пред ${hours} ч`;
   const days = Math.floor(hours / 24);
   if (days < 30) return `пред ${days} д`;
-  return new Date(iso).toLocaleDateString('mk-MK', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return fmtDate(iso);
 }

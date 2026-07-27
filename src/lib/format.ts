@@ -15,25 +15,40 @@ export function fmtMKD(n: number | null | undefined): string {
   }
 }
 
-/** Format an ISO timestamp as a short local date+time. */
-export function fmtDateTime(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('mk-MK', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+// Dates are built by hand rather than via toLocaleDateString: the 'mk-MK'
+// locale isn't installed on every machine and silently falls back to en-US,
+// so the same screen showed "Sat, 07/04/2026" on one computer and a different
+// order on another. dd/mm/yyyy everywhere, on every browser.
+const pad = (n: number) => String(n).padStart(2, '0');
+
+function toLocalDate(iso: string): Date {
+  // A bare YYYY-MM-DD parses as UTC midnight, which lands on the previous day
+  // west of Greenwich — pin it to local midnight instead.
+  return new Date(iso + (iso.length === 10 ? 'T00:00:00' : ''));
 }
 
-/** Format an ISO date (YYYY-MM-DD) as a readable local date. */
+/** Format an ISO date as dd/mm/yyyy. */
 export function fmtDate(iso: string | null | undefined): string {
   if (!iso) return '—';
-  return new Date(iso + (iso.length === 10 ? 'T00:00:00' : '')).toLocaleDateString(
-    'mk-MK',
-    { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' },
-  );
+  const d = toLocalDate(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+/** Format an ISO timestamp as dd/mm/yyyy HH:mm. */
+export function fmtDateTime(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = toLocalDate(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return `${fmtDate(iso)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Time only, as HH:mm. */
+export function fmtTime(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /** Which department a category belongs to (drinks → Бар, else Кујна). */

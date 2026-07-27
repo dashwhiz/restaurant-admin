@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
-import { fmtMKD } from '@/lib/format';
+import { fmtMKD, fmtTime } from '@/lib/format';
 import { loadAnalytics, type AnalyticsData } from '@/lib/services/analytics';
 import { TrendChart, RankChart } from './components/Charts';
 
@@ -135,7 +135,7 @@ export default function AnalyticsPage() {
         title="Аналитика"
         subtitle={
           fetchedAt
-            ? `Преглед за последните ${days} дена · освежено ${new Date(fetchedAt).toLocaleTimeString('mk-MK', { hour: '2-digit', minute: '2-digit' })}`
+            ? `Преглед за последните ${days} дена · освежено ${fmtTime(new Date(fetchedAt).toISOString())}`
             : `Преглед за последните ${days} дена`
         }
         actions={

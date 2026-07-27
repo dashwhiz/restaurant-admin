@@ -99,6 +99,10 @@ function isoDaysAgo(days: number): string {
   return d.toISOString();
 }
 
+// Spelled out rather than taken from toLocaleDateString: the mk-MK locale
+// isn't present on every machine and falls back to English month names.
+const MONTHS_MK = ['јан', 'фев', 'мар', 'апр', 'мај', 'јун', 'јул', 'авг', 'сеп', 'окт', 'ное', 'дек'];
+
 /** "2026-07" for the LOCAL month. toISOString() would give the UTC month, which
  *  is a different month either side of midnight — bars labelled with one month
  *  would then hold another month's takings. */
@@ -216,7 +220,7 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
     d.setDate(1);
     d.setMonth(d.getMonth() - i);
     monthIndex.set(localMonthKey(d), months.length);
-    months.push({ month: d.toLocaleDateString('mk-MK', { month: 'short' }), revenue: 0 });
+    months.push({ month: MONTHS_MK[d.getMonth()], revenue: 0 });
   }
   const posDayAll = new Set(posImports.map((i) => i.import_date));
   for (const item of posItems) {
