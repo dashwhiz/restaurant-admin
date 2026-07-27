@@ -39,6 +39,9 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           NEXT_PUBLIC_REQUIRE_AUTH: 'true'
+          # Shown on the Settings page so you can tell which build is live.
+          NEXT_PUBLIC_COMMIT_SHA: ${{ github.sha }}
+          NEXT_PUBLIC_BUILD_TIME: ${{ github.event.head_commit.timestamp }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./out
