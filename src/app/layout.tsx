@@ -15,7 +15,10 @@ const applySavedTheme = `try{var t=localStorage.getItem('lira-theme');if(t==='li
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="mk" className="h-full antialiased">
+    // suppressHydrationWarning: the script below deliberately sets data-theme on
+    // <html> before React hydrates, so server and client markup differ here by
+    // design. It applies to this element's own attributes only, not to children.
+    <html lang="mk" className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-dvh">
         <Script id="lira-theme" strategy="beforeInteractive">
           {applySavedTheme}
