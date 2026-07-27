@@ -10,6 +10,7 @@ import { getTableCounts, probeScanner, type TableCount } from '@/lib/services/he
 import { clearAllData } from '@/lib/services/admin';
 import { BACKUP_TABLES, exportAllTables } from '@/lib/services/backup';
 import { fmtDateTime } from '@/lib/format';
+import { getTheme, setTheme, THEME_LABELS, type Theme } from '@/lib/theme';
 
 // Injected by the deploy workflow. Empty locally — there's no commit to report.
 const COMMIT_SHA = process.env.NEXT_PUBLIC_COMMIT_SHA || '';
@@ -25,6 +26,18 @@ export default function SettingsPage() {
   const [checking, setChecking] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
   const [progress, setProgress] = useState('');
+  // Read on mount, not during render: localStorage doesn't exist while the page
+  // is prerendered at build time.
+  const [theme, setThemeState] = useState<Theme>('system');
+
+  useEffect(() => {
+    setThemeState(getTheme());
+  }, []);
+
+  function chooseTheme(next: Theme) {
+    setTheme(next);
+    setThemeState(next);
+  }
 
   const runChecks = useCallback(async () => {
     setChecking(true);
@@ -108,6 +121,29 @@ export default function SettingsPage() {
               Одјави се
             </button>
           )}
+        </div>
+
+        <div className="card">
+          <h2 className="mb-1 text-sm font-bold uppercase tracking-wide text-muted">Изглед</h2>
+          <p className="mb-3 text-xs text-muted">
+            Важи само за овој уред и прелистувач.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {(['light', 'dark', 'system'] as Theme[]).map((option) => (
+              <button
+                key={option}
+                // Selection isn't an action — the one primary button on this
+                // screen stays the backup. Selected reads as an outlined state.
+                className={
+                  option === theme ? 'btn-ghost border-primary text-primary' : 'btn-ghost'
+                }
+                aria-pressed={option === theme}
+                onClick={() => chooseTheme(option)}
+              >
+                {THEME_LABELS[option]}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="card">

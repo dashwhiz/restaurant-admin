@@ -41,8 +41,12 @@ hover-only actions are invisible to half the users.
 
 ## What we already have — use it, don't reinvent
 
-**Colour tokens** (`src/app/globals.css`). Light and dark are both defined and
-flip automatically with the OS. **Always use the token, never a raw hex:**
+**Colour tokens** (`src/app/globals.css`). Light and dark are both defined. They
+follow the OS by default, and **Поставки → Изглед** lets someone force light or
+dark for their own browser (`src/lib/theme.ts` sets `data-theme` on `<html>`).
+Not everyone wants their whole machine's setting applied to a work tool.
+
+**Always use the token, never a raw hex:**
 
 | Token | Use for |
 |---|---|
@@ -117,7 +121,7 @@ Common asks and the honest answer:
 | "Put the logo everywhere" | Branding is for customers; staff already know where they work | Logo once, in the nav |
 | "Fit more on screen" (smaller text) | Unreadable in a kitchen, and mistyped quantities corrupt stock | Show fewer columns on mobile, full table on desktop |
 | "Custom font" | A dependency and a load cost for zero task benefit | System font stack — fast, familiar, renders everywhere |
-| "Dark mode toggle" | Already automatic via the OS; a toggle is a setting to maintain and get wrong | Nothing — it works today |
+| "Make this page look different from the others" | Consistency is what makes the tool learnable; a one-off layout costs the user every time they land on it | Fix what's actually hard to find on the page as it is |
 | "Hide the buttons until you hover" | Invisible on touch, which is most of the usage | Keep actions visible, or put them in a row-level menu |
 
 **When he insists after hearing the downside, build it.** He owns the tool and he

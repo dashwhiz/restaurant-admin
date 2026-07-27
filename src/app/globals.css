@@ -4,6 +4,7 @@
    @theme block maps them to Tailwind color utilities (bg-surface, text-muted,
    border-border, bg-primary, …). Always use these tokens, never hardcoded hex. */
 :root {
+  color-scheme: light;
   --background: #f6f6f4;
   --surface: #ffffff;
   --foreground: #1b1b1d;
@@ -16,8 +17,14 @@
   --success: #0a7d55;
 }
 
+/* Theme: follow the OS unless the user picked one in Поставки, which sets
+   data-theme on <html>. The dark values are written twice on purpose — once for
+   "follow the OS" and once for an explicit choice — because CSS has no way to
+   share a declaration block between a media query and an attribute selector.
+   Keep the two lists identical. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
     --background: #131316;
     --surface: #1d1d22;
     --foreground: #ececf0;
@@ -29,6 +36,20 @@
     --warning: #f5a623;
     --success: #3ecf8e;
   }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --background: #131316;
+  --surface: #1d1d22;
+  --foreground: #ececf0;
+  --muted: #9a9aa2;
+  --border: #2b2b31;
+  --primary: #3ecf8e;
+  --primary-fg: #06231a;
+  --danger: #ff6b5e;
+  --warning: #f5a623;
+  --success: #3ecf8e;
 }
 
 @theme inline {
@@ -102,9 +123,12 @@ select:not(:disabled) {
   /* A data-URI can't read the CSS variables, so the dark chevron is spelled out.
      These two greys ARE --muted in each mode — keep them in step if it changes. */
   @media (prefers-color-scheme: dark) {
-    .select {
+    :root:not([data-theme='light']) .select {
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239a9aa2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
+  }
+  :root[data-theme='dark'] .select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239a9aa2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
   .label {
     @apply mb-1 block text-xs font-semibold text-muted;
