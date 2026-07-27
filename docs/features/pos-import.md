@@ -54,9 +54,5 @@ amount in notes — for the owner to complete.
 
 ## Invoice scanning (Anthropic Vision)
 
-A photographed/scanned invoice is sent to Claude Vision, which returns line
-items with per-line VAT (`ddv_rate`, `price_without_ddv`, `price_with_ddv`),
-names kept in Macedonian (so they match products), supplier, and doc type. The
-review screen auto-fills price-with-VAT from base × (1 + rate/100). Matched
-items add stock + log a purchase; the base (без ДДВ) price is stored as
-`cost_per_unit`. Requires `NEXT_PUBLIC_ANTHROPIC_API_KEY`.
+Invoice scanning is a separate feature with its own page (`/scan`). See
+[`invoice-scan.md`](./invoice-scan.md).

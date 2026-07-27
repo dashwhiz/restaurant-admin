@@ -18,6 +18,7 @@ New here? Read [`README.md`](./README.md) for setup, then the deeper docs in
 - [`docs/adding-a-feature.md`](./docs/adding-a-feature.md) — step-by-step playbook
 - [`docs/debugging.md`](./docs/debugging.md) — how to find out why something broke
 - [`docs/security.md`](./docs/security.md) — dependency policy, hosting, RLS
+- [`docs/setup-checklist.md`](./docs/setup-checklist.md) — one-time setup left to do (DB table, scanner Edge Function, deploy)
 - [`docs/features/`](./docs/features) — one plain-language spec per feature
 
 ## Who this is for

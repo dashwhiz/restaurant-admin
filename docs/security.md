@@ -37,8 +37,10 @@ and the database currently has **Row-Level Security (RLS) disabled**. That means
 1. Add a login (Supabase Auth) so only the restaurant can use it.
 2. Enable RLS on every table and add policies (authenticated users only).
 
-Also move the Anthropic invoice-scan key off `NEXT_PUBLIC_` and behind a small
-server function, and rotate it (a `NEXT_PUBLIC_` key is visible to users).
+The Anthropic invoice-scan key is **already** kept off the browser: it lives in
+a Supabase Edge Function secret (`supabase/functions/scan-invoice`), never in
+`NEXT_PUBLIC_` and never in the bundle. See
+[`features/invoice-scan.md`](./features/invoice-scan.md).
 
 ## Secrets
 

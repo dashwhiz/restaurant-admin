@@ -58,6 +58,7 @@ export const IconMenu = (p: P) => (<svg {...base} {...p}><path d="M3 6h18M3 12h1
 export const IconClose = (p: P) => (<svg {...base} {...p}><path d="M18 6 6 18M6 6l12 12" /></svg>);
 export const IconCheck = (p: P) => (<svg {...base} {...p}><path d="M20 6 9 17l-5-5" /></svg>);
 export const IconPlug = (p: P) => (<svg {...base} {...p}><path d="M9 2v6M15 2v6M7 8h10v3a5 5 0 0 1-10 0zM12 16v6" /></svg>);
+export const IconScan = (p: P) => (<svg {...base} {...p}><path d="M4 7V5a1 1 0 0 1 1-1h2M20 7V5a1 1 0 0 0-1-1h-2M4 17v2a1 1 0 0 0 1 1h2M20 17v2a1 1 0 0 0-1 1h-2M3 12h18" /></svg>);
 // Brand mark: fork + knife.
 export const IconLogo = (p: P) => (
   <svg {...base} {...p}><path d="M6 3v7a2 2 0 0 0 4 0V3M8 10v11M16 3c-1.5 0-2.5 2-2.5 5s1 4 2.5 4v9" /></svg>

@@ -33,8 +33,8 @@ That's it. Every push to `main` rebuilds and redeploys. The site will be at
 - The deployed build sets `NEXT_PUBLIC_REQUIRE_AUTH=true`, so the app shows a
   login screen and won't load data without a session.
 - RLS means even someone with the anon key + URL gets nothing without logging in.
-- The Anthropic (invoice-scan) key is **not** in the build — it belongs in a
-  Supabase Edge Function secret (added when the scanner is ported).
+- The Anthropic (invoice-scan) key is **not** in the build — it lives in a
+  Supabase Edge Function secret. Deploy steps: [`setup-checklist.md`](./setup-checklist.md).
 
 ## Collaborator access
 

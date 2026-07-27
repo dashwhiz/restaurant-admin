@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { NAV } from './nav';
+import { NAV_GROUPS } from './nav';
 import { Login } from './Login';
 import { ToastProvider } from '@/components/ui/Toast';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -38,21 +38,30 @@ export function AppShell({ children }: { children: ReactNode }) {
     href === '/' ? pathname === '/' : pathname.startsWith(href);
 
   const navLinks = (
-    <nav className="flex flex-col gap-0.5">
-      {NAV.map(({ href, label, icon: Icon }) => (
-        <Link
-          key={href}
-          href={href}
-          onClick={() => setOpen(false)}
-          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-            isActive(href)
-              ? 'bg-primary/12 text-primary'
-              : 'text-foreground/80 hover:bg-background'
-          }`}
-        >
-          <Icon className="h-5 w-5 shrink-0" />
-          {label}
-        </Link>
+    <nav className="flex flex-col gap-4">
+      {NAV_GROUPS.map((group, i) => (
+        <div key={group.title ?? i} className="flex flex-col gap-0.5">
+          {group.title && (
+            <span className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+              {group.title}
+            </span>
+          )}
+          {group.items.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => setOpen(false)}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                isActive(href)
+                  ? 'bg-primary/12 text-primary'
+                  : 'text-foreground/80 hover:bg-background'
+              }`}
+            >
+              <Icon className="h-5 w-5 shrink-0" />
+              {label}
+            </Link>
+          ))}
+        </div>
       ))}
     </nav>
   );

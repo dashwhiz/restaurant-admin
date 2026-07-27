@@ -59,9 +59,13 @@ paste your values from Supabase (**Settings → API**):
 
 - `NEXT_PUBLIC_SUPABASE_URL` — the project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — the public "anon" key
-- `NEXT_PUBLIC_ANTHROPIC_API_KEY` — (optional) only for invoice scanning
 
 This file is private — it is never uploaded to GitHub.
+
+> Invoice scanning does **not** use a key in this file. The Anthropic key lives
+> only inside a Supabase Edge Function on the server, so it's never exposed in
+> the browser. See [`docs/features/invoice-scan.md`](./docs/features/invoice-scan.md)
+> and the one-time setup in [`docs/setup-checklist.md`](./docs/setup-checklist.md).
 
 ---
 
