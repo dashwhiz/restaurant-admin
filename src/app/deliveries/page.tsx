@@ -6,6 +6,8 @@ import { useToast } from '@/components/ui/Toast';
 import { IconPlus, IconEdit, IconTrash } from '@/components/ui/Icons';
 import { fmtMKD, fmtDateTime } from '@/lib/format';
 import { exportCsv } from '@/lib/csv';
+import Link from 'next/link';
+import { IconScan } from '@/components/ui/Icons';
 import { listProducts } from '@/lib/services/products';
 import { listDeliveries, deleteDelivery, type DeliveryRow } from '@/lib/services/deliveries';
 import type { Product } from '@/lib/types';
@@ -71,6 +73,9 @@ export default function DeliveriesPage() {
         subtitle="Примени стоки — автоматски се додаваат во залиха"
         actions={
           <>
+          <Link className="btn-ghost" href="/scan">
+            <IconScan className="h-4 w-4" /> Скенирај фактура
+          </Link>
           <button className="btn-ghost" onClick={exportRows} disabled={rows.length === 0}>
             CSV
           </button>
