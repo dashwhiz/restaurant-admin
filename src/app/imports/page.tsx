@@ -19,12 +19,14 @@ import {
   type ParsedDaily,
 } from '@/lib/pos/parse';
 import { DailyPreview } from './components/DailyPreview';
+import { BulkDailyPreview } from './components/BulkDailyPreview';
 
 type Loaded =
   | { kind: 'sitesifri' | 'prodazni'; label: string; result: SifrarnikResult }
   | { kind: 'normativi'; label: string; parsed: ParsedNormativ[] }
   | { kind: 'cenovnik'; label: string; parsed: ParsedPrice[] }
-  | { kind: 'daily'; label: string; parsed: ParsedDaily };
+  | { kind: 'daily'; label: string; parsed: ParsedDaily }
+  | { kind: 'bulk-daily'; label: string; files: ParsedDaily[] };
 
 const LABELS: Record<string, string> = {
   sitesifri: 'Шифрарник (производи + рецепти)',
@@ -41,9 +43,26 @@ export default function ImportsPage() {
   const [doRecipes, setDoRecipes] = useState(true);
   const [busy, setBusy] = useState(false);
 
-  async function onFile(file: File) {
+  async function onFiles(fileList: FileList) {
+    const files = Array.from(fileList);
     try {
-      const text = await file.text();
+      // Several files at once only makes sense for daily sales — the other
+      // formats are single master files where a second one just replaces the
+      // first. Anything else, fall back to reading the first file.
+      if (files.length > 1) {
+        const texts = await Promise.all(files.map((f) => f.text()));
+        const formats = texts.map(detectFormat);
+        if (!formats.every((f) => f === 'daily')) {
+          return toast('Повеќе фајлови може да се вчитаат само за дневна продажба', 'error');
+        }
+        return setLoaded({
+          kind: 'bulk-daily',
+          label: `${files.length} дневни фајлови`,
+          files: texts.map(parseDaily),
+        });
+      }
+
+      const text = await files[0].text();
       const fmt = detectFormat(text);
       if (fmt === 'unknown') return toast('Непознат формат на фајлот', 'error');
       const label = LABELS[fmt];
@@ -111,12 +130,13 @@ export default function ImportsPage() {
         <label className="card flex cursor-pointer flex-col items-center gap-2 border-dashed py-12 text-center">
           <IconImport className="h-8 w-8 text-muted" />
           <span className="font-semibold">Избери или довлечи .TXT фајл</span>
-          <span className="text-xs text-muted">Форматот се препознава автоматски</span>
+          <span className="text-xs text-muted">Форматот се препознава автоматски · може повеќе дневни фајлови одеднаш</span>
           <input
             type="file"
             accept=".txt,.TXT,text/plain"
             className="hidden"
-            onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
+            multiple
+            onChange={(e) => e.target.files?.length && onFiles(e.target.files)}
           />
         </label>
       ) : (
@@ -170,6 +190,7 @@ export default function ImportsPage() {
           )}
 
           {loaded.kind === 'daily' && <DailyPreview parsed={loaded.parsed} onDone={reset} />}
+          {loaded.kind === 'bulk-daily' && <BulkDailyPreview files={loaded.files} onDone={reset} />}
         </div>
       )}
     </>

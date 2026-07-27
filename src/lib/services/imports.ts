@@ -3,6 +3,7 @@
 import { getSupabase } from '@/lib/supabase';
 import type { Recipe, Product, PosMapping } from '@/lib/types';
 import { bestMatch } from '@/lib/pos/match';
+import { fetchAllRows } from './paged';
 import type { ParsedItem, ParsedNormativ, ParsedPrice } from '@/lib/pos/parse';
 
 const TABLE_MISSING = /does not exist|find the table|relation|schema cache/i;
@@ -128,6 +129,24 @@ export interface DailySaleInput {
   recipeId: string;
   qty: number;
 }
+
+/**
+ * Business days already imported. Importing a day twice doubles its sales AND
+ * deducts its stock twice, with nothing to undo it — so a bulk run has to check
+ * first. Read from the `POS <date>` note each import writes.
+ */
+export async function getImportedDays(): Promise<Set<string>> {
+  const rows = await fetchAllRows<{ notes: string | null }>('sales', {
+    select: 'id,notes',
+    like: { column: 'notes', pattern: 'POS %' },
+  });
+  const days = new Set<string>();
+  for (const row of rows) {
+    const match = /^POS (\d{4}-\d{2}-\d{2})/.exec(row.notes ?? '');
+    if (match) days.add(match[1]);
+  }
+  return days;
+}
 // Batched so the request count stays small no matter how many items a daily
 // export has: one insert for all sales, then one read of every needed recipe's
 // ingredients, one read of the affected products, and a single update per
@@ -141,9 +160,20 @@ export async function importDaily(date: string, items: DailySaleInput[], deductS
 
   const rounded = items.map((it) => ({ recipeId: it.recipeId, qty: Math.round(it.qty) }));
 
-  const { error: sErr } = await sb
-    .from('sales')
-    .insert(rounded.map((it) => ({ recipe_id: it.recipeId, quantity: it.qty, notes: `POS ${date}` })));
+  // Stamp the sale with the day it was actually sold, not the moment of import.
+  // Without this, importing a backlog puts every day's takings on today, and
+  // every date-based figure (analytics, trends, periods) is mis-attributed.
+  // Midday avoids the row sliding into an adjacent day across timezones.
+  const soldAt = `${date}T12:00:00Z`;
+
+  const { error: sErr } = await sb.from('sales').insert(
+    rounded.map((it) => ({
+      recipe_id: it.recipeId,
+      quantity: it.qty,
+      notes: `POS ${date}`,
+      created_at: soldAt,
+    })),
+  );
   if (sErr) throw sErr;
 
   if (deductStock) {

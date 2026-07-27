@@ -113,7 +113,7 @@ Common asks and the honest answer:
 |---|---|---|
 | "Make it pop" — shadows, gradients, animation | Adds visual noise to a screen people scan 40× a day; slows comprehension | Ask which number is hard to find, then raise *its* hierarchy |
 | "More colours" | Destroys the red/green safety signal | Keep the 4-colour vocabulary; use spacing and weight for hierarchy |
-| "A big dashboard with charts" | Charts look impressive and answer nothing; the real questions are "what's low" and "what did we sell" | A short list of items below `min_stock`, and today's totals |
+| "Add a chart for this" | A chart that doesn't answer a question is decoration with extra loading time | Ask what decision it informs. The Аналитика page earns its charts — food cost, ABC and days-of-stock answer "what's losing money" and "what runs out first". A chart that answers nothing doesn't get built |
 | "Put the logo everywhere" | Branding is for customers; staff already know where they work | Logo once, in the nav |
 | "Fit more on screen" (smaller text) | Unreadable in a kitchen, and mistyped quantities corrupt stock | Show fewer columns on mobile, full table on desktop |
 | "Custom font" | A dependency and a load cost for zero task benefit | System font stack — fast, familiar, renders everywhere |

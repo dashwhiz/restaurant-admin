@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
@@ -15,8 +15,15 @@ const RANGES = [
   { days: 365, label: 'Последна година' },
 ];
 
-// Rough industry rule of thumb: food cost above this is eating the margin.
-const FOOD_COST_TARGET = 35;
+// Rough industry rules of thumb.
+const FOOD_COST_TARGET = 35; // above this, food cost is eating the margin
+const WASTE_TARGET_PCT = 5; // above this, waste is a problem not a rounding error
+
+// This page pulls eight tables in full, so it's the one place where refetching
+// on every visit is worth avoiding. Cached per range; the refresh button forces
+// a reload, and the TTL stops a tab left open overnight showing yesterday.
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const cache = new Map<number, { data: AnalyticsData; at: number }>();
 
 function pct(n: number | null): string {
   return n === null ? '—' : `${n.toFixed(1)}%`;
@@ -43,30 +50,32 @@ function Kpi({
   );
 }
 
+// Everything on this page is visible at once — it's an analytics page, so hiding
+// numbers behind a click is friction with no payoff.
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <details className="card">
-      <summary className="cursor-pointer text-sm font-bold uppercase tracking-wide text-muted">
-        {title}
-      </summary>
+    <div className="card">
+      <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{title}</h2>
       <div className="mt-3">{children}</div>
-    </details>
+    </div>
   );
 }
 
 function ValueTable({ rows, empty }: { rows: { category: string; value: number }[]; empty: string }) {
   if (rows.length === 0) return <p className="text-sm text-muted">{empty}</p>;
   return (
-    <table className="w-full text-sm">
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.category} className="border-b border-border last:border-0">
-            <td className="py-1.5 pr-2">{r.category}</td>
-            <td className="py-1.5 text-right font-semibold">{fmtMKD(r.value)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.category} className="border-b border-border last:border-0">
+              <td className="py-1.5 pr-2">{r.category}</td>
+              <td className="py-1.5 text-right font-semibold whitespace-nowrap">{fmtMKD(r.value)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -75,16 +84,40 @@ export default function AnalyticsPage() {
   const [days, setDays] = useState(30);
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchedAt, setFetchedAt] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // Only the newest request may write state — otherwise flipping the range
+  // quickly can let a slow answer land last and label it with the wrong period.
+  const latestRequest = useRef(0);
 
   const load = useCallback(
-    async (d: number) => {
+    async (d: number, force = false) => {
+      const hit = cache.get(d);
+      if (!force && hit && Date.now() - hit.at < CACHE_TTL_MS) {
+        setData(hit.data);
+        setFetchedAt(hit.at);
+        setLoading(false);
+        return;
+      }
+      const token = ++latestRequest.current;
+      setError(null);
       setLoading(true);
       try {
-        setData(await loadAnalytics(d));
+        const result = await loadAnalytics(d);
+        if (token !== latestRequest.current) return;
+        const at = Date.now();
+        cache.set(d, { data: result, at });
+        setData(result);
+        setFetchedAt(at);
       } catch (e) {
-        toast('Грешка при вчитување: ' + (e as Error).message, 'error');
+        if (token === latestRequest.current) {
+          // Keep the failure on screen. A vanishing toast plus an empty state
+          // reads as "you sold nothing", which is a lie the owner may act on.
+          setError((e as Error).message);
+          toast('Грешка при вчитување: ' + (e as Error).message, 'error');
+        }
       } finally {
-        setLoading(false);
+        if (token === latestRequest.current) setLoading(false);
       }
     },
     [toast],
@@ -100,28 +133,46 @@ export default function AnalyticsPage() {
     <>
       <PageHeader
         title="Аналитика"
-        subtitle={`Преглед за последните ${days} дена`}
+        subtitle={
+          fetchedAt
+            ? `Преглед за последните ${days} дена · освежено ${new Date(fetchedAt).toLocaleTimeString('mk-MK', { hour: '2-digit', minute: '2-digit' })}`
+            : `Преглед за последните ${days} дена`
+        }
         actions={
-          <select
-            className="input w-auto"
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-          >
-            {RANGES.map((r) => (
-              <option key={r.days} value={r.days}>
-                {r.label}
-              </option>
-            ))}
-          </select>
+          <>
+            <select
+              className="select w-auto"
+              aria-label="Период"
+              value={days}
+              onChange={(e) => setDays(Number(e.target.value))}
+            >
+              {RANGES.map((r) => (
+                <option key={r.days} value={r.days}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+            <button className="btn-ghost" onClick={() => load(days, true)} disabled={loading}>
+              {loading ? 'Освежува…' : 'Освежи'}
+            </button>
+          </>
         }
       />
 
-      {loading && !data ? (
+      {error ? (
+        <div className="card border-danger/40">
+          <p className="text-sm font-semibold text-danger">Податоците не се вчитаа.</p>
+          <p className="mt-1 text-xs text-muted">{error}</p>
+          <button className="btn-ghost mt-3" onClick={() => load(days, true)}>
+            Обиди се повторно
+          </button>
+        </div>
+      ) : loading && !data ? (
         <EmptyState text="Се вчитува…" />
       ) : !data || !k ? (
         <EmptyState text="Нема податоци за овој период." />
       ) : (
-        <div className="grid gap-4">
+        <div className={`grid gap-4 ${loading ? 'opacity-60' : ''}`}>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Kpi
               label="Приход"
@@ -142,13 +193,21 @@ export default function AnalyticsPage() {
               label="Отпад"
               value={fmtMKD(k.wasteCost)}
               sub={`${pct(k.wastePctOfRevenue)} од приход · ${k.wasteCount} записи`}
-              tone={k.wastePctOfRevenue !== null && k.wastePctOfRevenue > 5 ? 'bad' : undefined}
+              tone={
+                k.wastePctOfRevenue !== null && k.wastePctOfRevenue > WASTE_TARGET_PCT
+                  ? 'bad'
+                  : undefined
+              }
             />
             <Kpi
               label="Бруто маржа"
               value={pct(k.marginPct)}
-              sub={`${fmtMKD(k.grossProfit)} профит`}
-              tone={k.marginPct !== null && k.marginPct > 0 ? 'good' : 'bad'}
+              sub={
+                k.uncostedUnits > 0
+                  ? `⚠ ${k.uncostedUnits} порции без норматив — маржата е превисока`
+                  : `${fmtMKD(k.grossProfit)} профит`
+              }
+              tone={k.uncostedUnits > 0 ? 'bad' : k.marginPct !== null && k.marginPct >= 55 ? 'good' : undefined}
             />
           </div>
 
@@ -166,7 +225,9 @@ export default function AnalyticsPage() {
               {data.top.length === 0 ? (
                 <p className="text-sm text-muted">Нема продажби во периодот.</p>
               ) : (
-                <RankChart data={data.top.map((t) => ({ name: t.name, value: t.revenue }))} />
+                <RankChart
+                  data={data.top.map((t) => ({ id: t.id, name: t.name, value: t.revenue }))}
+                />
               )}
             </div>
           </div>
@@ -188,9 +249,9 @@ export default function AnalyticsPage() {
                       {data.abc.map((r) => (
                         <tr key={r.id} className="border-b border-border last:border-0">
                           <td className="py-1.5 pr-2">
-                            <Badge tone={r.klass === 'A' ? 'green' : r.klass === 'B' ? 'gray' : 'yellow'}>
-                              {r.klass}
-                            </Badge>
+                            {/* The letter carries the meaning; yellow would
+                                wrongly imply "needs attention" for a tail item. */}
+                            <Badge tone={r.klass === 'A' ? 'green' : 'gray'}>{r.klass}</Badge>
                           </td>
                           <td className="py-1.5 pr-2">{r.name}</td>
                           <td className="py-1.5 text-right font-semibold">{fmtMKD(r.revenue)}</td>
@@ -226,7 +287,11 @@ export default function AnalyticsPage() {
                               r.daysLeft !== null && r.daysLeft < 3 ? 'text-danger' : ''
                             }`}
                           >
-                            {r.daysLeft === null ? '—' : `${Math.floor(r.daysLeft)} дена`}
+                            {r.daysLeft === null
+                              ? '—'
+                              : r.daysLeft <= 0
+                                ? 'нема'
+                                : `${Math.floor(r.daysLeft)} дена`}
                           </td>
                         </tr>
                       ))}
@@ -257,14 +322,16 @@ export default function AnalyticsPage() {
                         <td className="py-1.5 pr-2">{r.name}</td>
                         <td className="py-1.5 text-right">{fmtMKD(r.cost)}</td>
                         <td className="py-1.5 text-right">{fmtMKD(r.price)}</td>
-                        <td
-                          className={`py-1.5 text-right font-semibold ${
-                            r.foodCostPct !== null && r.foodCostPct > FOOD_COST_TARGET
-                              ? 'text-danger'
-                              : ''
-                          }`}
-                        >
-                          {pct(r.foodCostPct)}
+                        <td className="py-1.5 text-right font-semibold whitespace-nowrap">
+                          {r.cost === 0 ? (
+                            <Badge tone="yellow">нема норматив</Badge>
+                          ) : r.foodCostPct !== null && r.foodCostPct > FOOD_COST_TARGET ? (
+                            <span className="text-danger">
+                              {pct(r.foodCostPct)} <Badge tone="red">висок</Badge>
+                            </span>
+                          ) : (
+                            pct(r.foodCostPct)
+                          )}
                         </td>
                       </tr>
                     ))}

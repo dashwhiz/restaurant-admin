@@ -44,8 +44,13 @@ export async function getTableCounts(): Promise<TableCount[]> {
  */
 export async function probeScanner(): Promise<boolean> {
   try {
-    const { error } = await getSupabase().functions.invoke('scan-invoice', { body: {} });
-    return !error;
+    const { data, error } = await getSupabase().functions.invoke('scan-invoice', { body: {} });
+    if (error) return false;
+    // A missing API key also comes back as a handled 200 + { error }, so treat
+    // that as unavailable — otherwise Settings shows green for a scanner that
+    // fails on the first real invoice.
+    const message = (data as { error?: string } | null)?.error ?? '';
+    return !/ANTHROPIC_API_KEY/i.test(message);
   } catch {
     return false;
   }

@@ -22,7 +22,12 @@ type Row = Record<string, unknown>;
 
 function escape(value: unknown): string {
   if (value === null || value === undefined) return '';
-  const s = typeof value === 'object' ? JSON.stringify(value) : String(value);
+  let s = typeof value === 'object' ? JSON.stringify(value) : String(value);
+  // Excel executes a cell starting with = + - @ as a formula. POS-decoded names
+  // are not sanitised, so prefix an apostrophe to keep them as plain text — but
+  // never for a real number, or negative stock (allowed here) would import as
+  // text and stop adding up.
+  if (/^[=+\-@]/.test(s) && !Number.isFinite(Number(s))) s = `'${s}`;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

@@ -30,6 +30,9 @@ export interface Kpis {
   foodCostPct: number | null;
   wastePctOfRevenue: number | null;
   unitsSold: number;
+  /** Portions sold whose recipe has no ingredient cost — they contribute 0 to
+   *  COGS, so a high number means the margin above is flattering fiction. */
+  uncostedUnits: number;
   deliveryCount: number;
   wasteCount: number;
 }
@@ -96,6 +99,13 @@ function isoDaysAgo(days: number): string {
   return d.toISOString();
 }
 
+/** "2026-07" for the LOCAL month. toISOString() would give the UTC month, which
+ *  is a different month either side of midnight — bars labelled with one month
+ *  would then hold another month's takings. */
+function localMonthKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 /** Cost of one portion of a recipe, from its ingredients' current unit costs. */
 function buildRecipeCosts(
   ingredients: RecipeIngredient[],
@@ -113,22 +123,35 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
   const from = isoDaysAgo(days);
   // Trend always covers 6 months, independent of the selected period.
   const trendFrom = new Date();
-  trendFrom.setMonth(trendFrom.getMonth() - 5);
+  // setDate(1) first: on the 31st, shifting the month first overflows (Feb 31
+  // becomes Mar 3) and the window silently loses a month.
   trendFrom.setDate(1);
+  trendFrom.setMonth(trendFrom.getMonth() - 5);
   const trendFromIso = trendFrom.toISOString();
   const earliest = trendFromIso < from ? trendFromIso : from;
 
-  const [products, recipes, ingredients, sales, purchases, waste, posImports, posItems] =
-    await Promise.all([
-      fetchAllRows<Product>('products'),
-      fetchAllRows<Recipe>('recipes'),
-      fetchAllRows<RecipeIngredient>('recipe_ingredients'),
-      fetchAllRows<SaleRow>('sales', { gte: { column: 'created_at', value: earliest } }),
-      fetchAllRows<Purchase>('purchases', { gte: { column: 'created_at', value: from } }),
-      fetchAllRows<WasteRow>('waste_log', { gte: { column: 'created_at', value: from } }),
-      fetchAllRows<PosImport>('pos_imports'),
-      fetchAllRows<PosSalesItem>('pos_sales_items'),
-    ]);
+  const [products, recipes, ingredients, sales, purchases, waste, posImports] = await Promise.all([
+    fetchAllRows<Product>('products'),
+    fetchAllRows<Recipe>('recipes'),
+    fetchAllRows<RecipeIngredient>('recipe_ingredients'),
+    fetchAllRows<SaleRow>('sales', { gte: { column: 'created_at', value: earliest } }),
+    fetchAllRows<Purchase>('purchases', { gte: { column: 'created_at', value: from } }),
+    fetchAllRows<WasteRow>('waste_log', { gte: { column: 'created_at', value: from } }),
+    // Bounded to the trend window — unbounded, this grows without limit and is
+    // re-read in full on every range change.
+    fetchAllRows<PosImport>('pos_imports', {
+      gte: { column: 'import_date', value: earliest.slice(0, 10) },
+    }),
+  ]);
+  // Only the line items belonging to those imports, and only the two columns
+  // the totals need.
+  const posItems =
+    posImports.length === 0
+      ? []
+      : await fetchAllRows<Pick<PosSalesItem, 'import_id' | 'amount'>>('pos_sales_items', {
+          select: 'id,import_id,amount',
+          in: { column: 'import_id', values: posImports.map((i) => i.id) },
+        });
 
   const productById = new Map(products.map((p) => [p.id, p]));
   const productCost = new Map(products.map((p) => [p.id, p.cost_per_unit ?? 0]));
@@ -177,6 +200,10 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
     foodCostPct: revenue > 0 ? (cogs / revenue) * 100 : null,
     wastePctOfRevenue: revenue > 0 ? (wasteCost / revenue) * 100 : null,
     unitsSold: periodSales.reduce((s, x) => s + x.quantity, 0),
+    uncostedUnits: periodSales.reduce(
+      (s, x) => s + ((recipeCost.get(x.recipe_id) ?? 0) > 0 ? 0 : x.quantity),
+      0,
+    ),
     deliveryCount: purchases.length,
     wasteCount: waste.length,
   };
@@ -188,8 +215,7 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
     const d = new Date();
     d.setDate(1);
     d.setMonth(d.getMonth() - i);
-    const key = d.toISOString().slice(0, 7);
-    monthIndex.set(key, months.length);
+    monthIndex.set(localMonthKey(d), months.length);
     months.push({ month: d.toLocaleDateString('mk-MK', { month: 'short' }), revenue: 0 });
   }
   const posDayAll = new Set(posImports.map((i) => i.import_date));
@@ -200,7 +226,7 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
   }
   for (const s of sales) {
     if (posDayAll.has(s.created_at.slice(0, 10))) continue;
-    const idx = monthIndex.get(s.created_at.slice(0, 7));
+    const idx = monthIndex.get(localMonthKey(new Date(s.created_at)));
     if (idx !== undefined) {
       months[idx].revenue += s.quantity * (recipeById.get(s.recipe_id)?.selling_price ?? 0);
     }
@@ -216,16 +242,22 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
     stat.revenue += s.quantity * (recipe.selling_price ?? 0);
     stats.set(s.recipe_id, stat);
   }
-  const ranked = [...stats.values()].sort((a, b) => b.revenue - a.revenue);
+  // Name breaks revenue ties so classes don't shuffle between reloads.
+  const ranked = [...stats.values()].sort(
+    (a, b) => b.revenue - a.revenue || a.name.localeCompare(b.name),
+  );
   const neverSold = recipes.filter((r) => !stats.has(r.id)).map((r) => r.name).sort();
 
   // ── ABC: A = recipes making the first 70% of revenue, B to 90%, C the rest ──
   const totalRanked = ranked.reduce((s, r) => s + r.revenue, 0);
   let running = 0;
   const abc: AbcRow[] = ranked.map((r) => {
+    // Classify on the share BEFORE adding this item, so the top seller is always
+    // A. Classifying after would make a lone recipe 100% cumulative — and "C".
+    const before = totalRanked > 0 ? (running / totalRanked) * 100 : 0;
     running += r.revenue;
-    const pct = totalRanked > 0 ? (running / totalRanked) * 100 : 0;
-    return { ...r, cumulativePct: pct, klass: pct <= 70 ? 'A' : pct <= 90 ? 'B' : 'C' };
+    const after = totalRanked > 0 ? (running / totalRanked) * 100 : 0;
+    return { ...r, cumulativePct: after, klass: before < 70 ? 'A' : before < 90 ? 'B' : 'C' };
   });
 
   // ── Days of stock, from real consumption over the period ──
@@ -241,9 +273,20 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
       used.set(ing.product_id, (used.get(ing.product_id) ?? 0) + ing.quantity * s.quantity);
     }
   }
+  // Divide by the span the data actually covers, not the span requested. Asking
+  // for a year when only 40 days of sales exist would otherwise make every
+  // product look 9x better stocked than it is.
+  const earliestSale = periodSales.reduce<string | null>(
+    (min, s) => (min === null || s.created_at < min ? s.created_at : min),
+    null,
+  );
+  const coveredDays = earliestSale
+    ? Math.max(1, Math.min(days, (Date.now() - new Date(earliestSale).getTime()) / 86_400_000))
+    : days;
+
   const stockDays: StockDayRow[] = products
     .map((p) => {
-      const dailyUse = (used.get(p.id) ?? 0) / days;
+      const dailyUse = (used.get(p.id) ?? 0) / coveredDays;
       return {
         id: p.id,
         name: p.name,
@@ -263,7 +306,9 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
       const price = r.selling_price ?? 0;
       return { id: r.id, name: r.name, cost, price, foodCostPct: price > 0 ? (cost / price) * 100 : null };
     })
-    .filter((r) => r.cost > 0)
+    // Keep zero-cost recipes visible — those are the ones missing a norm, and
+    // they're exactly what drags COGS to nothing. Hiding them hides the problem.
+    .filter((r) => r.cost > 0 || r.price > 0)
     .sort((a, b) => (b.foodCostPct ?? 0) - (a.foodCostPct ?? 0));
 
   // ── Detail roll-ups ──
