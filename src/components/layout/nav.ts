@@ -63,6 +63,3 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [{ href: '/settings', label: 'Поставки', icon: IconSettings }],
   },
 ];
-
-// Flat list of every navigable item (handy for lookups / breadcrumbs).
-export const NAV: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);

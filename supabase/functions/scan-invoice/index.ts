@@ -1,3 +1,4 @@
+/// <reference path="./deno.d.ts" />
 // Supabase Edge Function: scan-invoice
 //
 // Keeps the Anthropic API key OFF the browser. The client sends
@@ -65,7 +66,9 @@ Deno.serve(async (req: Request) => {
 
   try {
     const { base64, mimeType } = await req.json();
-    if (!base64) return json({ error: 'Нема слика во барањето.' });
+    if (typeof base64 !== 'string' || !base64) return json({ error: 'Нема слика во барањето.' });
+    // ~12M base64 chars ≈ a 9 MB file. Caps the cost/abuse of a single call.
+    if (base64.length > 12_000_000) return json({ error: 'Сликата е преголема (макс ~9 MB).' });
 
     const isPDF = mimeType === 'application/pdf';
     const contentBlock = isPDF
@@ -108,6 +111,7 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'Claude врати неочекуван формат. Обиди се повторно.' });
     }
   } catch (e) {
-    return json({ error: (e as Error).message }, 500);
+    // Return 200 so the client's { error } contract surfaces the real message.
+    return json({ error: (e as Error).message });
   }
 });

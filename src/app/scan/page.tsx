@@ -11,6 +11,7 @@ import { listProducts } from '@/lib/services/products';
 import {
   scanInvoice,
   importScannedInvoice,
+  ScanImportError,
   NEW_PRODUCT,
   SKIP,
   type ScanResult,
@@ -83,10 +84,15 @@ export default function ScanPage() {
       rs.map((r, idx) => {
         if (idx !== i) return r;
         const merged = { ...r, ...next };
-        // Keep price-with-DDV in sync when the base or the rate changes.
+        // Keep the two prices in sync. Editing base or rate fills со-ДДВ;
+        // editing со-ДДВ back-fills the base (needed for fiscal receipts, which
+        // only print the with-VAT price).
         if ('priceNoDDV' in next || 'ddvRate' in next) {
           const base = num(merged.priceNoDDV);
           if (base > 0) merged.priceDDV = (base * (1 + num(merged.ddvRate) / 100)).toFixed(2);
+        } else if ('priceDDV' in next) {
+          const withDDV = num(merged.priceDDV);
+          if (withDDV > 0) merged.priceNoDDV = (withDDV / (1 + num(merged.ddvRate) / 100)).toFixed(2);
         }
         return merged;
       }),
@@ -103,15 +109,23 @@ export default function ScanPage() {
     if (!result) return;
     setBusy(true);
     try {
-      const lines: ImportLine[] = rows.map((r) => ({
-        name: r.name,
-        quantity: num(r.quantity),
-        unit: r.unit,
-        cost_per_unit: num(r.priceNoDDV),
-        ddv_rate: num(r.ddvRate),
-        price_with_ddv: num(r.priceDDV),
-        target: r.target,
-      }));
+      const lines: ImportLine[] = rows.map((r) => {
+        // Stored cost is the без-ДДВ unit price; derive it from со-ДДВ when only
+        // that is known (fiscal receipts), so cost is never lost.
+        let base = num(r.priceNoDDV);
+        const withDDV = num(r.priceDDV);
+        const rate = num(r.ddvRate);
+        if (base <= 0 && withDDV > 0) base = Number((withDDV / (1 + rate / 100)).toFixed(2));
+        return {
+          name: r.name,
+          quantity: num(r.quantity),
+          unit: r.unit,
+          cost_per_unit: base,
+          ddv_rate: rate,
+          price_with_ddv: withDDV,
+          target: r.target,
+        };
+      });
       const { imported, created } = await importScannedInvoice(lines, {
         supplier: result.supplier,
         invoiceNumber: result.invoice_number,
@@ -122,7 +136,14 @@ export default function ScanPage() {
       );
       reset();
     } catch (e) {
-      toast('Грешка: ' + (e as Error).message, 'error');
+      // On a mid-batch failure, drop the lines already imported so a retry won't
+      // double-count stock — only the failed line onward stays in the table.
+      if (e instanceof ScanImportError) {
+        setRows((rs) => rs.slice(e.processed));
+        toast(`Увезено делумно. Грешка на ставка ${e.processed + 1}: ${e.message}`, 'error');
+      } else {
+        toast('Грешка: ' + (e as Error).message, 'error');
+      }
     } finally {
       setBusy(false);
     }

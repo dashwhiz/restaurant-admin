@@ -47,6 +47,16 @@ export interface ImportLine {
   target: string;
 }
 
+// Thrown when a line fails mid-batch. `processed` = how many input lines were
+// already handled (imported or skipped) before the failure. The page uses it to
+// drop those rows so a retry can't re-import — and re-inflate stock — for them.
+export class ScanImportError extends Error {
+  constructor(message: string, readonly processed: number) {
+    super(message);
+    this.name = 'ScanImportError';
+  }
+}
+
 export async function importScannedInvoice(
   lines: ImportLine[],
   meta: { supplier: string | null; invoiceNumber: string | null },
@@ -56,40 +66,45 @@ export async function importScannedInvoice(
   let imported = 0;
   let created = 0;
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     if (line.target === SKIP || !line.quantity || line.quantity <= 0) continue;
 
-    let productId = line.target;
-    if (line.target === NEW_PRODUCT) {
-      const { data, error } = await sb
-        .from('products')
-        .insert({
-          name: line.name, category: 'Суровина', unit: line.unit, department: 'Кујна',
-          current_stock: 0, min_stock: 0, cost_per_unit: line.cost_per_unit,
-        })
-        .select('id')
-        .single();
-      if (error) throw error;
-      productId = data.id as string;
-      created++;
-    } else if (line.cost_per_unit > 0) {
-      const { error } = await sb.from('products').update({ cost_per_unit: line.cost_per_unit }).eq('id', productId);
-      if (error) throw error;
+    try {
+      let productId = line.target;
+      if (line.target === NEW_PRODUCT) {
+        const { data, error } = await sb
+          .from('products')
+          .insert({
+            name: line.name, category: 'Суровина', unit: line.unit, department: 'Кујна',
+            current_stock: 0, min_stock: 0, cost_per_unit: line.cost_per_unit,
+          })
+          .select('id')
+          .single();
+        if (error) throw error;
+        productId = data.id as string;
+        created++;
+      } else if (line.cost_per_unit > 0) {
+        const { error } = await sb.from('products').update({ cost_per_unit: line.cost_per_unit }).eq('id', productId);
+        if (error) throw error;
+      }
+
+      const { error: pErr } = await sb.from('purchases').insert({
+        product_id: productId,
+        quantity: line.quantity,
+        cost_per_unit: line.cost_per_unit,
+        ddv_rate: line.ddv_rate,
+        price_with_ddv: line.price_with_ddv,
+        supplier: meta.supplier,
+        notes: note,
+      });
+      if (pErr) throw pErr;
+
+      await applyStockDelta(productId, line.quantity);
+      imported++;
+    } catch (e) {
+      throw new ScanImportError((e as Error).message, i);
     }
-
-    const { error: pErr } = await sb.from('purchases').insert({
-      product_id: productId,
-      quantity: line.quantity,
-      cost_per_unit: line.cost_per_unit,
-      ddv_rate: line.ddv_rate,
-      price_with_ddv: line.price_with_ddv,
-      supplier: meta.supplier,
-      notes: note,
-    });
-    if (pErr) throw pErr;
-
-    await applyStockDelta(productId, line.quantity);
-    imported++;
   }
   return { imported, created };
 }
