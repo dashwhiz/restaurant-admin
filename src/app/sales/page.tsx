@@ -5,6 +5,7 @@ import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
 import { useToast } from '@/components/ui/Toast';
 import { IconPlus, IconEdit, IconTrash, IconChevron } from '@/components/ui/Icons';
 import { fmtMKD, fmtDate, departmentOf } from '@/lib/format';
+import { exportCsv, downloadCsv, toCsv } from '@/lib/csv';
 import { listRecipes } from '@/lib/services/recipes';
 import { listSales, deleteSale, type SaleRow } from '@/lib/services/sales';
 import type { Recipe } from '@/lib/types';
@@ -47,6 +48,30 @@ export default function SalesPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // One row per sale, with the columns the owner actually reads in Excel —
+  // not the raw table (no uuids, prices resolved).
+  function rowsFor(list: SaleRow[]) {
+    return list.map((s) => ({
+      датум: (s.created_at || '').slice(0, 10),
+      рецепт: s.recipe?.name ?? '',
+      оддел: departmentOf(s.recipe?.category),
+      количина: s.quantity ?? 0,
+      цена: s.recipe?.selling_price ?? 0,
+      износ: (s.quantity || 0) * (s.recipe?.selling_price ?? 0),
+      белешка: s.notes ?? '',
+    }));
+  }
+
+  function exportAll() {
+    const n = exportCsv('prodazbi', rowsFor(sales));
+    toast(n > 0 ? `Преземени ${n} продажби` : 'Нема што да се преземе', n > 0 ? 'success' : 'error');
+  }
+
+  function exportDay(day: string, list: SaleRow[]) {
+    downloadCsv(`lira-prodazbi-${day}.csv`, toCsv(rowsFor(list)));
+    toast(`Преземени продажби за ${fmtDate(day)}`, 'success');
+  }
 
   // Group by day (newest first), split each day into Бар / Кујна.
   const groups = useMemo<DayGroup[]>(() => {
@@ -118,9 +143,14 @@ export default function SalesPage() {
         title="Продажби"
         subtitle="По денови, поделено на Бар и Кујна"
         actions={
-          <button className="btn-primary" onClick={() => setDialog({ open: true, row: null })}>
-            <IconPlus className="h-4 w-4" /> Нова продажба
-          </button>
+          <>
+            <button className="btn-ghost" onClick={exportAll} disabled={sales.length === 0}>
+              CSV
+            </button>
+            <button className="btn-primary" onClick={() => setDialog({ open: true, row: null })}>
+              <IconPlus className="h-4 w-4" /> Нова продажба
+            </button>
+          </>
         }
       />
 
@@ -134,15 +164,26 @@ export default function SalesPage() {
             const open = openDays.has(g.day);
             return (
               <div key={g.day} className="overflow-hidden rounded-xl border border-border">
-                <button
-                  onClick={() => toggle(g.day)}
-                  className="flex w-full items-center gap-3 bg-surface px-4 py-3 text-left"
-                >
-                  <IconChevron className={`h-4 w-4 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
-                  <span className="flex-1 font-bold">{fmtDate(g.day)}</span>
-                  <span className="text-xs text-muted">{g.count} ставки</span>
-                  {g.revenue > 0 && <span className="font-bold">{fmtMKD(g.revenue)}</span>}
-                </button>
+                {/* Siblings, not nested — a button inside a button is invalid
+                    and the inner one stops working. */}
+                <div className="flex w-full items-center bg-surface pr-2">
+                  <button
+                    onClick={() => toggle(g.day)}
+                    className="flex flex-1 items-center gap-3 px-4 py-3 text-left"
+                  >
+                    <IconChevron className={`h-4 w-4 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
+                    <span className="flex-1 font-bold">{fmtDate(g.day)}</span>
+                    <span className="text-xs text-muted">{g.count} ставки</span>
+                    {g.revenue > 0 && <span className="font-bold">{fmtMKD(g.revenue)}</span>}
+                  </button>
+                  <button
+                    className="btn-ghost shrink-0 px-2 py-1 text-xs"
+                    title={`Преземи CSV за ${fmtDate(g.day)}`}
+                    onClick={() => exportDay(g.day, [...g.bar, ...g.kitchen])}
+                  >
+                    CSV
+                  </button>
+                </div>
                 {open && (
                   <div className="border-t border-border bg-surface px-4 pb-3">
                     {section('Бар', g.bar, BAR_TONE)}

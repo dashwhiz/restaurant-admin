@@ -5,6 +5,7 @@ import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
 import { useToast } from '@/components/ui/Toast';
 import { IconPlus, IconEdit, IconTrash } from '@/components/ui/Icons';
 import { fmtMKD, fmtDateTime } from '@/lib/format';
+import { exportCsv } from '@/lib/csv';
 import { listProducts } from '@/lib/services/products';
 import { listDeliveries, deleteDelivery, type DeliveryRow } from '@/lib/services/deliveries';
 import type { Product } from '@/lib/types';
@@ -45,15 +46,38 @@ export default function DeliveriesPage() {
     }
   }
 
+  function exportRows() {
+    const n = exportCsv(
+      'isporaki',
+      rows.map((r) => ({
+        датум: (r.created_at || '').slice(0, 10),
+        производ: r.product?.name ?? '',
+        количина: r.quantity ?? 0,
+        цена_без_ддв: r.cost_per_unit ?? 0,
+        ддв: r.ddv_rate ?? 0,
+        цена_со_ддв: r.price_with_ddv ?? 0,
+        вкупно: (r.quantity || 0) * (r.cost_per_unit ?? 0),
+        добавувач: r.supplier ?? '',
+        белешка: r.notes ?? '',
+      })),
+    );
+    toast(n > 0 ? `Преземени ${n} испораки` : 'Нема што да се преземе', n > 0 ? 'success' : 'error');
+  }
+
   return (
     <>
       <PageHeader
         title="Испораки"
         subtitle="Примени стоки — автоматски се додаваат во залиха"
         actions={
+          <>
+          <button className="btn-ghost" onClick={exportRows} disabled={rows.length === 0}>
+            CSV
+          </button>
           <button className="btn-primary" onClick={() => setDialog({ open: true, row: null })}>
             <IconPlus className="h-4 w-4" /> Нова испорака
           </button>
+          </>
         }
       />
 

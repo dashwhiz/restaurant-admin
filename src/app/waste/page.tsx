@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { IconPlus, IconEdit, IconTrash } from '@/components/ui/Icons';
 import { fmtMKD, fmtDateTime } from '@/lib/format';
+import { exportCsv } from '@/lib/csv';
 import { listProducts } from '@/lib/services/products';
 import { listWaste, deleteWaste, type WasteRow } from '@/lib/services/waste';
 import type { Product } from '@/lib/types';
@@ -46,15 +47,34 @@ export default function WastePage() {
     }
   }
 
+  function exportRows() {
+    const n = exportCsv(
+      'otpad',
+      rows.map((r) => ({
+        датум: (r.created_at || '').slice(0, 10),
+        производ: r.product?.name ?? '',
+        количина: r.quantity ?? 0,
+        причина: r.reason ?? '',
+        вредност: (r.quantity || 0) * (r.product?.cost_per_unit ?? 0),
+      })),
+    );
+    toast(n > 0 ? `Преземени ${n} записи` : 'Нема што да се преземе', n > 0 ? 'success' : 'error');
+  }
+
   return (
     <>
       <PageHeader
         title="Отпад и расип"
         subtitle="Загуби — автоматски се одземаат од залиха"
         actions={
+          <>
+          <button className="btn-ghost" onClick={exportRows} disabled={rows.length === 0}>
+            CSV
+          </button>
           <button className="btn-primary" onClick={() => setDialog({ open: true, row: null })}>
             <IconPlus className="h-4 w-4" /> Нов запис
           </button>
+          </>
         }
       />
 

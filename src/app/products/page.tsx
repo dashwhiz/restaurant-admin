@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { IconPlus, IconEdit, IconTrash, IconSearch } from '@/components/ui/Icons';
 import { fmtMKD } from '@/lib/format';
+import { exportCsv } from '@/lib/csv';
 import { listProducts, deleteProduct } from '@/lib/services/products';
 import type { Product } from '@/lib/types';
 import { ProductDialog } from './components/ProductDialog';
@@ -54,15 +55,36 @@ export default function ProductsPage() {
     }
   }
 
+  function exportRows() {
+    const n = exportCsv(
+      'proizvodi',
+      filtered.map((p) => ({
+        назив: p.name,
+        категорија: p.category,
+        оддел: p.department,
+        единица: p.unit,
+        залиха: p.current_stock,
+        минимум: p.min_stock,
+        цена_по_единица: p.cost_per_unit,
+      })),
+    );
+    toast(n > 0 ? `Преземени ${n} производи` : 'Нема што да се преземе', n > 0 ? 'success' : 'error');
+  }
+
   return (
     <>
       <PageHeader
         title="Производи"
         subtitle="Суровини и артикли со залиха"
         actions={
+          <>
+          <button className="btn-ghost" onClick={exportRows} disabled={filtered.length === 0}>
+            CSV
+          </button>
           <button className="btn-primary" onClick={() => setDialog({ open: true, product: null })}>
             <IconPlus className="h-4 w-4" /> Нов производ
           </button>
+          </>
         }
       />
 
