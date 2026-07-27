@@ -127,9 +127,14 @@ Keep the dependency count as low as possible.
 ## Working on features
 
 ### Before a substantial feature
-- Use `superpowers:brainstorming` to align on the approach and write a short,
-  plain-language spec into `docs/features/<feature>.md` before writing code.
+- Use `superpowers:brainstorming` to align on the approach before writing code.
   Small, obvious changes don't need it.
+- **Present the spec in the chat, not as a file.** The owner reads it there and
+  replies there. Do **not** write a separate spec doc — no
+  `docs/features/<feature>.md`, no `docs/superpowers/specs/…`, even when a skill
+  tells you to. Same for implementation plans: show them in the conversation.
+- `docs/features/` stays as-is for the features already documented; it's
+  reference, not somewhere to keep adding specs for new work.
 
 ### Verification (before claiming anything is done)
 - `npm run build` green (typechecks the whole project).
