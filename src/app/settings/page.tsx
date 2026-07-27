@@ -8,6 +8,7 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { getSession, requireAuth, signOut } from '@/lib/services/auth';
 import { getTableCounts, probeScanner, type TableCount } from '@/lib/services/health';
 import { clearAllData } from '@/lib/services/admin';
+import { BACKUP_TABLES, exportAllTables } from '@/lib/services/backup';
 import { fmtDateTime } from '@/lib/format';
 
 // Injected by the deploy workflow. Empty locally — there's no commit to report.
@@ -22,6 +23,8 @@ export default function SettingsPage() {
   const [counts, setCounts] = useState<TableCount[] | null>(null);
   const [scannerOk, setScannerOk] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
+  const [progress, setProgress] = useState('');
 
   const runChecks = useCallback(async () => {
     setChecking(true);
@@ -41,6 +44,22 @@ export default function SettingsPage() {
     getSession().then((s) => setEmail(s?.user.email ?? null));
     runChecks();
   }, [runChecks]);
+
+  async function backup() {
+    setBackingUp(true);
+    setProgress(`0/${BACKUP_TABLES.length}`);
+    try {
+      const { saved, empty } = await exportAllTables((p) => setProgress(`${p.done}/${p.total}`));
+      const rows = saved.reduce((sum, s) => sum + s.rows, 0);
+      const skipped = empty.length ? `, ${empty.length} празни прескокнати` : '';
+      toast(`Преземени ${saved.length} датотеки (${rows.toLocaleString('mk-MK')} записи)${skipped}`, 'success');
+    } catch (e) {
+      toast('Резервната копија не успеа: ' + (e as Error).message, 'error');
+    } finally {
+      setBackingUp(false);
+      setProgress('');
+    }
+  }
 
   async function wipe() {
     if (!confirm('ВНИМАНИЕ: ова ги брише СИТЕ податоци (производи, рецепти, продажби, испораки, отпад, попис, настани, POS увози). Не може да се врати. Продолжи?')) return;
@@ -136,18 +155,10 @@ export default function SettingsPage() {
         <div className="card">
           <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted">Верзија</h2>
           {COMMIT_SHA ? (
-            <>
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-muted">Изданиe</span>
-                <span className="font-mono">{COMMIT_SHA.slice(0, 7)}</span>
-              </div>
-              {BUILD_TIME && (
-                <div className="mt-2 flex items-center justify-between gap-3 text-sm">
-                  <span className="text-muted">Објавено</span>
-                  <span>{fmtDateTime(BUILD_TIME)}</span>
-                </div>
-              )}
-            </>
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+              <span className="font-mono">{COMMIT_SHA.slice(0, 7)}</span>
+              {BUILD_TIME && <span className="text-muted">· објавено {fmtDateTime(BUILD_TIME)}</span>}
+            </div>
           ) : (
             <p className="text-sm text-muted">Локална верзија (не е објавена).</p>
           )}
@@ -157,6 +168,17 @@ export default function SettingsPage() {
               (потоа рестартирај го серверот).
             </p>
           )}
+        </div>
+
+        <div className="card">
+          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted">Резервна копија</h2>
+          <p className="mb-3 text-xs text-muted">
+            Презема по една CSV датотека за секоја табела ({BACKUP_TABLES.length} вкупно). Се
+            отвораат во Excel. Прелистувачот ќе побара дозвола за повеќе преземања.
+          </p>
+          <button className="btn-primary" onClick={backup} disabled={backingUp}>
+            {backingUp ? `Презема… ${progress}` : 'Преземи резервна копија (CSV)'}
+          </button>
         </div>
 
         <div className="card border-danger/40">
