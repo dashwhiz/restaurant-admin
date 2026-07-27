@@ -24,18 +24,54 @@ Keep dependencies minimal. Current runtime deps: `next`, `react`, `react-dom`,
   downgrading Next.js to an ancient version — do **not** run it. Re-check when
   ESLint/Next release updated tooling.
 
-## Hosting & the anon key ⚠️
+## Hosting & the anon key
 
-The app is client-side, so the Supabase **anon key is in the browser bundle**,
-and the database currently has **Row-Level Security (RLS) disabled**. That means:
+The app is client-side, so the Supabase **anon key is in the browser bundle** —
+anyone can read it out of the JavaScript. That is fine, and intended: the anon
+key is a public identifier, not a password. **Row-Level Security is what
+protects the data**, and it is now enabled.
 
-- ✅ **Local use is fine** — the bundle lives on your machine only.
-- ❌ **A public deploy (GitHub Pages / Vercel / …) would expose the whole
-  database** to anyone who finds the URL, because RLS is off and the key is public.
+Both pieces are in place (set up 2026-07-27):
 
-**Before any public deploy**, do both:
-1. Add a login (Supabase Auth) so only the restaurant can use it.
-2. Enable RLS on every table and add policies (authenticated users only).
+1. **Login** — Supabase Auth. `NEXT_PUBLIC_REQUIRE_AUTH=true` in both the
+   deployed build and `.env.local`, so the app refuses to load data without a
+   session. Users are created by hand in the dashboard; **public sign-up is
+   off**, so nobody can enrol themselves.
+2. **RLS on every table** — `supabase/rls.sql` enables RLS and grants a single
+   policy, `"authenticated full access"`, to the `authenticated` role. With the
+   anon key alone every table returns an empty result.
+
+### ⚠️ Adding a table? Update `supabase/rls.sql`
+
+`rls.sql` walks a **hardcoded list** of table names — it is not "every table in
+the schema". A new table created outside that list has RLS **off** and is
+readable and writable by anyone with the anon key.
+
+So whenever you add a table: add its name to the array in `supabase/rls.sql` and
+re-run the whole script in the SQL Editor. It is safe to re-run — it skips
+tables that don't exist and replaces the policy rather than duplicating it.
+
+### The policy is deliberately coarse
+
+`using (true) with check (true)` means any logged-in user has full access to
+everything. That is correct for a single restaurant with a handful of
+hand-created accounts, and per-user policies would be over-engineering. It does
+mean **public sign-up must stay off** — Authentication → Sign In / Providers →
+Email → "Allow new users to sign up". If that were ever switched on, a stranger
+who registered would get the whole database.
+
+### Verifying it still holds
+
+From any terminal, with the public anon key:
+
+```bash
+curl -s "https://sawvyrwtnwrqiwhnzypw.supabase.co/rest/v1/products?select=*&limit=1" \
+  -H "apikey: <anon key>" -H "Authorization: Bearer <anon key>"
+```
+
+Expected: `[]`. If real rows come back, RLS is off on that table — fix it before
+anything else. (A blocked read returns `200` with an empty array, not an error,
+so an empty result is the pass condition.)
 
 The Anthropic invoice-scan key is **already** kept off the browser: it lives in
 a Supabase Edge Function secret (`supabase/functions/scan-invoice`), never in

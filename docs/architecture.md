@@ -51,10 +51,11 @@ shared caches.
 
 Pro: dead simple, no server to run, static-export/GitHub-Pages capable.
 
-Con: the Supabase anon key is in the browser. Safe for **local** use. For a
-public deploy we must add auth + enable Row-Level Security first — see
-[`security.md`](./security.md). This is why we avoid server-only Next features
-(API routes, server actions): they'd break static export.
+Con: the Supabase anon key is in the browser. That's handled — login plus
+Row-Level Security mean the key grants nothing on its own, so the site is safe on
+a public URL. See [`security.md`](./security.md). This is why we avoid
+server-only Next features (API routes, server actions): they'd break static
+export.
 
 ## Stock is the delicate part
 

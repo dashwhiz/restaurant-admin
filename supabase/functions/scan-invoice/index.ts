@@ -5,10 +5,8 @@
 // { base64, mimeType }; this proxies the image/PDF to Claude Vision and returns
 // structured invoice JSON. See docs/features/invoice-scan.md.
 //
-// One-time setup (see docs/setup-checklist.md):
-//   supabase login
+// Already deployed. To redeploy after editing this file (see docs/deploy.md):
 //   supabase link --project-ref sawvyrwtnwrqiwhnzypw
-//   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 //   supabase functions deploy scan-invoice
 //
 // Handled problems return HTTP 200 with { "error": "..." } so the client can show

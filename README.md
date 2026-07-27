@@ -62,10 +62,13 @@ paste your values from Supabase (**Settings → API**):
 
 This file is private — it is never uploaded to GitHub.
 
+There is a third setting, `NEXT_PUBLIC_REQUIRE_AUTH=true`. Leave it on — the
+database only answers logged-in users now, so with it off the app would just show
+empty pages.
+
 > Invoice scanning does **not** use a key in this file. The Anthropic key lives
 > only inside a Supabase Edge Function on the server, so it's never exposed in
-> the browser. See [`docs/features/invoice-scan.md`](./docs/features/invoice-scan.md)
-> and the one-time setup in [`docs/setup-checklist.md`](./docs/setup-checklist.md).
+> the browser. See [`docs/features/invoice-scan.md`](./docs/features/invoice-scan.md).
 
 ---
 

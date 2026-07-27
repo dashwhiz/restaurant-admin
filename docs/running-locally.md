@@ -14,6 +14,11 @@ npm run dev            # then open http://localhost:3000
 Stop with **Ctrl+C**. `.env.local` must contain the two Supabase values or the
 app shows a "not connected" screen.
 
+**You have to log in locally**, with the same email and password as the live
+site. Local and deployed share one database, and that database only answers
+logged-in users. A page that loads but shows **nothing** — no error, just empty —
+almost always means no session, not a broken query.
+
 ## Claude Code setup
 
 This repo is built to be driven by Claude Code in VS Code.

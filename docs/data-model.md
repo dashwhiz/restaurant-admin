@@ -44,24 +44,19 @@ Kalo columns (raw-prep loss only): `yield_pct`, `kalo_defrost`, `kalo_trim`,
 `pos_sales_items`: `id`, `import_id`, `sifra`, `name`, `unit`, `qty`, `amount`,
 `gratis_qty`, `gratis_amount`, `recipe_id`, `matched`.
 
-## New table to add: `pos_mappings`
+### `pos_mappings` — remembered POS matches
+`id`, `sifra` (unique), `recipe_id`, `skip`, `created_at`.
 
-For "remember manual POS matches" (so a šifra auto-matches its recipe next time).
-Run this once in Supabase → **SQL Editor**:
-
-```sql
-create table if not exists pos_mappings (
-  id uuid default gen_random_uuid() primary key,
-  sifra text not null unique,
-  recipe_id uuid references recipes(id) on delete cascade,
-  skip boolean default false,
-  created_at timestamptz default now()
-);
-alter table pos_mappings disable row level security;
-```
+Lets a šifra auto-match its recipe on the next import. Created 2026-07-27; it's
+the only table this rewrite added — everything else predates it and came from the
+old app.
 
 ## Row-Level Security
 
-RLS is currently **disabled** on all tables (matching the old app). This is only
-acceptable for local use. See [`security.md`](./security.md) before any public
-deploy.
+RLS is **on for every table**, with one policy granting full access to logged-in
+(`authenticated`) users. The public anon key alone reads and writes nothing.
+
+⚠️ **If you add a table, add it to the list in
+[`supabase/rls.sql`](../supabase/rls.sql) and re-run that script.** The script
+walks a hardcoded array, not the whole schema, so a new table is unprotected
+until it's listed. Details in [`security.md`](./security.md).

@@ -57,17 +57,17 @@ stays reversible (same rule as everywhere — see [`stock.md`](./stock.md)).
 A line imported as a new product is created as category **Суровина**, department
 **Кујна**, `min_stock` 0. Adjust it afterwards on the Products page if needed.
 
-## Setup (one-time, done on the server)
+## Setup — done (2026-07-27)
 
-The scanner only works once the Edge Function is deployed and the key is set.
-Full steps are in [`../setup-checklist.md`](../setup-checklist.md):
+The `scan-invoice` Edge Function is deployed and `ANTHROPIC_API_KEY` is set as a
+server secret, so the scanner works on both the local and deployed app. Commands
+and redeploy notes: [`../deploy.md`](../deploy.md#invoice-scanner).
 
-```bash
-supabase login
-supabase link --project-ref sawvyrwtnwrqiwhnzypw
-supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
-supabase functions deploy scan-invoice
-```
+If the page ever shows *"ANTHROPIC_API_KEY не е поставен на серверот"*, the
+secret is missing or misnamed — check **Edge Functions → Secrets** in the
+dashboard, then redeploy the function.
 
-If the key isn't set, the page shows: *"ANTHROPIC_API_KEY не е поставен на
-серверот."* — that's the reminder to run the setup.
+## Cost
+
+Each scan is one Claude Vision call. Keep a sensible spend limit on the key in
+the Anthropic console.

@@ -14,11 +14,13 @@ New here? Read [`README.md`](./README.md) for setup, then the deeper docs in
 
 - [`docs/architecture.md`](./docs/architecture.md) — how the pieces fit together
 - [`docs/conventions.md`](./docs/conventions.md) — naming, imports, file layout
+- [`docs/design.md`](./docs/design.md) — how the UI should look, and which
+  design requests to push back on
 - [`docs/data-model.md`](./docs/data-model.md) — the Supabase tables
 - [`docs/adding-a-feature.md`](./docs/adding-a-feature.md) — step-by-step playbook
 - [`docs/debugging.md`](./docs/debugging.md) — how to find out why something broke
 - [`docs/security.md`](./docs/security.md) — dependency policy, hosting, RLS
-- [`docs/setup-checklist.md`](./docs/setup-checklist.md) — one-time setup left to do (DB table, scanner Edge Function, deploy)
+- [`docs/deploy.md`](./docs/deploy.md) — how the live site is built and secured
 - [`docs/features/`](./docs/features) — one plain-language spec per feature
 
 ## Who this is for
@@ -151,6 +153,60 @@ Keep the dependency count as low as possible.
   find root cause, then fix — don't patch symptoms. App-specific tactics are in
   [`docs/debugging.md`](./docs/debugging.md).
 
+### UI and UX work
+- Read [`docs/design.md`](./docs/design.md) before changing anything visual.
+- This is an **admin tool**: boring, consistent, nothing decorative. Use the
+  existing tokens and components (`.card`, `.btn-*`, `PageHeader`, `Badge`, …);
+  never hardcode a colour, it breaks dark mode silently.
+- **Push back on design requests that would make the tool worse**, and explain
+  why in plain language — the table in `design.md` covers the usual ones. Ask
+  what task was slow or confusing rather than arguing about taste. Say the
+  concern **once**; if the owner still wants it, build it properly.
+
+## Git & commits
+
+The owner is not a developer and does not want to run git by hand. **Claude
+handles it**, subject to the rules below. (This inverts the usual "never commit
+without being asked" default — it is deliberate, and it applies only to this
+repo.)
+
+### Commit and push automatically
+
+After finishing a piece of work and verifying it, **stage, commit, and push to
+`main` without asking.** No approval step, no "shall I commit?" question.
+
+**Never push a red build.** `npm run build` must pass first — a push to `main`
+triggers the GitHub Actions deploy, so a broken commit becomes the live site
+within minutes. If the build fails, fix it or say plainly that you're leaving
+the work uncommitted, and why.
+
+Still off-limits without an explicit ask: **force-push, `--amend`, `reset
+--hard`, `--no-verify`, rebasing, deleting branches, or switching branches.**
+Those can lose the owner's work, and he has no easy way to recover it.
+
+### Message format
+
+**Conventional Commits, one line, terse, no `Co-Authored-By` trailer.**
+
+```
+type(scope): what changed, lowercase
+```
+
+- **type** — `feat`, `fix`, `docs`, `refactor`, `chore`, `style`, `revert`
+- **scope** — the feature slice: `products`, `recipes`, `deliveries`, `sales`,
+  `waste`, `events`, `imports`, `scan`, `stock`, `auth`, `ui`, `deps`
+- **summary** — what actually changed, in plain words. Not "update code".
+
+```
+feat(scan): remember supplier per invoice number
+fix(stock): reverse the original delta when a delivery is edited
+docs(security): record RLS + login setup
+chore(deps): pin sharp to 0.35.3
+```
+
+One logical change per commit. If a task touched three unrelated things, that's
+three commits.
+
 ## Suggested plugins/skills for this repo
 
 Install the **superpowers** plugin in Claude Code so the skills above are
@@ -160,9 +216,11 @@ available (`brainstorming`, `writing-plans`, `systematic-debugging`,
 
 ## Known constraints (not bugs to "fix")
 
-- **Supabase RLS is currently disabled** and the anon key is public. Acceptable
-  for **local** use only. Before any public deploy, add a login + enable RLS —
-  see [`docs/security.md`](./docs/security.md).
+- **RLS is on; the anon key is public by design.** Every table allows only
+  logged-in (`authenticated`) users, so the key in the browser bundle grants
+  nothing on its own. Local and deployed both require login. Any **new table
+  must be added to `supabase/rls.sql` and the script re-run**, or it ships
+  unprotected — see [`docs/security.md`](./docs/security.md).
 - **Negative stock is allowed on purpose** — a real "you sold more than the
   system knew" signal, and it keeps edits/deletes exactly reversible.
 - **9 dev-only npm advisories** (ESLint/PostCSS tooling) are accepted; they never
