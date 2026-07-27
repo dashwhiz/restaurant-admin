@@ -1,7 +1,7 @@
 // Parsers for the LYRA POS export files. Pure functions: text in, structured
 // data out. Names are decoded to Cyrillic; category/department classification
 // runs on the RAW (Latin-keyword) text. See docs/features/pos-import.md.
-import { decodePOS, cleanPOSName } from './decode';
+import { cleanPOSName } from './decode';
 
 export type PosFormat = 'sitesifri' | 'prodazni' | 'normativi' | 'cenovnik' | 'daily' | 'unknown';
 
@@ -154,7 +154,7 @@ export function parseCenovnik(text: string): ParsedPrice[] {
     const lines = block.split('\n');
     const hm = lines[0]?.match(/^\s*(\d+)\s+(.+?)(?:\s+KOM|\s*$)/i);
     if (!hm) continue;
-    let rawName = hm[2]
+    const rawName = hm[2]
       .replace(/\s+[\x00-\x1f\x80-\xff~`^{[\\"]\S*\s*[\d.]*\s*$/, '')
       .replace(/\s+\d+\.\d+\s*$/, '')
       .trim();

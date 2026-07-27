@@ -4,7 +4,7 @@ import { getSupabase } from '@/lib/supabase';
 import type { Recipe, Product, PosMapping } from '@/lib/types';
 import { applyRecipeStock } from './stock';
 import { bestMatch } from '@/lib/pos/match';
-import type { ParsedItem, ParsedNormativ, ParsedPrice, ParsedDaily } from '@/lib/pos/parse';
+import type { ParsedItem, ParsedNormativ, ParsedPrice } from '@/lib/pos/parse';
 
 const TABLE_MISSING = /does not exist|find the table|relation/i;
 
