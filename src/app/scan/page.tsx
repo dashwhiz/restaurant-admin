@@ -178,18 +178,40 @@ export default function ScanPage() {
       />
 
       {phase === 'idle' && (
-        <label className="card flex cursor-pointer flex-col items-center gap-2 border-dashed py-12 text-center">
+        <div className="card flex flex-col items-center gap-3 border-dashed py-12 text-center">
           <IconScan className="h-8 w-8 text-muted" />
-          <span className="font-semibold">Избери или сликај фактура</span>
-          <span className="text-xs text-muted">Слика (JPG/PNG) или PDF</span>
-          <input
-            type="file"
-            accept="image/*,application/pdf"
-            capture="environment"
-            className="hidden"
-            onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
-          />
-        </label>
+          <span className="font-semibold">Скенирај фактура</span>
+          <span className="text-xs text-muted">
+            PDF се чита подобро од слика — ако имаш PDF, користи го.
+          </span>
+
+          <div className="mt-1 flex flex-wrap justify-center gap-2">
+            {/* No `capture` here: on a phone that attribute forces the camera and
+                hides the file picker entirely, which is what made PDFs
+                unreachable. Without it you get Photos / Files / Camera. */}
+            <label className="btn-primary cursor-pointer">
+              Избери фајл
+              <input
+                type="file"
+                accept="image/*,application/pdf,.pdf"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
+              />
+            </label>
+
+            {/* Keeps the one-tap straight-to-camera path for a paper invoice. */}
+            <label className="btn-ghost cursor-pointer">
+              Сликај
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
+              />
+            </label>
+          </div>
+        </div>
       )}
 
       {phase === 'scanning' && (
