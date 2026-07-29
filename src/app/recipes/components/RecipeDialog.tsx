@@ -107,29 +107,39 @@ export function RecipeDialog({
         </div>
         {items.length === 0 && <p className="py-2 text-xs text-muted">Нема состојки.</p>}
         <div className="flex flex-col gap-2">
-          {items.map((row, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <select
-                className="input flex-1"
-                value={row.product_id}
-                onChange={(e) => setRow(i, { product_id: e.target.value })}
-              >
-                <option value="">Производ…</option>
-                {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>)}
-              </select>
-              <input
-                className="input w-24"
-                type="number"
-                step="0.001"
-                placeholder="кол."
-                value={row.quantity || ''}
-                onChange={(e) => setRow(i, { quantity: num(e.target.value) })}
-              />
-              <button className="btn-ghost px-2 py-2 text-danger" onClick={() => removeRow(i)} aria-label="Отстрани">
-                <IconTrash className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
+          {items.map((row, i) => {
+            const unit = products.find((p) => p.id === row.product_id)?.unit;
+            return (
+              <div key={i} className="flex items-center gap-2">
+                <select
+                  className="input flex-1"
+                  value={row.product_id}
+                  onChange={(e) => setRow(i, { product_id: e.target.value })}
+                >
+                  <option value="">Производ…</option>
+                  {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>)}
+                </select>
+                <div className="relative">
+                  <input
+                    className={`input w-24 ${unit ? 'pr-10' : ''}`}
+                    type="number"
+                    step="0.001"
+                    placeholder="кол."
+                    value={row.quantity || ''}
+                    onChange={(e) => setRow(i, { quantity: num(e.target.value) })}
+                  />
+                  {unit && (
+                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted">
+                      {unit}
+                    </span>
+                  )}
+                </div>
+                <button className="btn-ghost px-2 py-2 text-danger" onClick={() => removeRow(i)} aria-label="Отстрани">
+                  <IconTrash className="h-4 w-4" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
     </Modal>
