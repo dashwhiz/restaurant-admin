@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { IconPlus, IconTrash } from '@/components/ui/Icons';
 import { num } from '@/lib/format';
+import { ProductPicker } from './ProductPicker';
 import {
   createRecipe,
   updateRecipe,
@@ -122,14 +123,11 @@ export function RecipeDialog({
             const unit = products.find((p) => p.id === row.product_id)?.unit;
             return (
               <div key={i} className="flex items-center gap-2">
-                <select
-                  className="input flex-1"
+                <ProductPicker
                   value={row.product_id}
-                  onChange={(e) => setRow(i, { product_id: e.target.value })}
-                >
-                  <option value="">Производ…</option>
-                  {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>)}
-                </select>
+                  products={products}
+                  onChange={(next) => setRow(i, { product_id: next })}
+                />
                 <div className="relative">
                   <input
                     className={`input w-24 ${unit ? 'pr-10' : ''}`}
