@@ -37,7 +37,6 @@ export default function SalesPage() {
       const [s, r] = await Promise.all([listSales(), listRecipes()]);
       setSales(s);
       setRecipes(r);
-      if (s.length) setOpenDays(new Set([(s[0].created_at || '').slice(0, 10)])); // newest day open
     } catch (e) {
       toast('Грешка при вчитување: ' + (e as Error).message, 'error');
     } finally {

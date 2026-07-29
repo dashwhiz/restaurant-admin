@@ -39,7 +39,6 @@ export default function DeliveriesPage() {
       const [d, p] = await Promise.all([listDeliveries(), listProducts()]);
       setRows(d);
       setProducts(p);
-      if (d.length) setOpenGroups(new Set([(d[0].created_at || '').slice(0, 10)])); // newest day open
     } catch (e) {
       toast('Грешка при вчитување: ' + (e as Error).message, 'error');
     } finally {
@@ -88,13 +87,7 @@ export default function DeliveriesPage() {
   // "by date", everything open for "by supplier" (there are far fewer suppliers).
   function chooseGroupBy(next: 'date' | 'supplier') {
     setGroupBy(next);
-    if (next === 'supplier') {
-      const bySupplier = new Map<string, true>();
-      for (const r of filtered) bySupplier.set(r.supplier?.trim() || NO_SUPPLIER, true);
-      setOpenGroups(new Set(bySupplier.keys()));
-    } else if (rows.length) {
-      setOpenGroups(new Set([(rows[0].created_at || '').slice(0, 10)]));
-    }
+    setOpenGroups(new Set()); // start closed, same as the initial page load
   }
 
   function toggle(key: string) {
