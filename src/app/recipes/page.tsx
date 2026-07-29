@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
-import { IconPlus, IconEdit, IconTrash } from '@/components/ui/Icons';
+import { IconPlus, IconEdit, IconTrash, IconSearch } from '@/components/ui/Icons';
 import { fmtMKD } from '@/lib/format';
 import { listProducts } from '@/lib/services/products';
 import {
@@ -23,6 +23,7 @@ export default function RecipesPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
   const [dialog, setDialog] = useState<{ open: boolean; recipe: Recipe | null }>({ open: false, recipe: null });
 
   async function load() {
@@ -52,7 +53,13 @@ export default function RecipesPage() {
     return m;
   }, [ingredients]);
 
-  const categories = useMemo(() => [...new Set(recipes.map((r) => r.category))], [recipes]);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return recipes;
+    return recipes.filter((r) => r.name.toLowerCase().includes(q) || r.category.toLowerCase().includes(q));
+  }, [recipes, query]);
+
+  const categories = useMemo(() => [...new Set(filtered.map((r) => r.category))], [filtered]);
 
   const dialogIngredients: IngredientDraft[] = dialog.recipe
     ? (ingByRecipe.get(dialog.recipe.id) ?? []).map((i) => ({ product_id: i.product_id, quantity: i.quantity }))
@@ -81,16 +88,28 @@ export default function RecipesPage() {
         }
       />
 
+      <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-surface px-3">
+        <IconSearch className="h-4 w-4 text-muted" />
+        <input
+          className="w-full bg-transparent py-2 text-sm outline-none"
+          placeholder="Пребарувај по назив или категорија…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+
       {loading ? (
         <p className="text-sm text-muted">Вчитување…</p>
       ) : recipes.length === 0 ? (
         <div className="card"><EmptyState text="Сè уште нема рецепти" /></div>
+      ) : filtered.length === 0 ? (
+        <div className="card"><EmptyState text="Нема резултати" /></div>
       ) : (
         categories.map((cat) => (
           <div key={cat} className="mb-6">
             <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">{cat}</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {recipes.filter((r) => r.category === cat).map((r) => {
+              {filtered.filter((r) => r.category === cat).map((r) => {
                 const ings = ingByRecipe.get(r.id) ?? [];
                 return (
                   <div key={r.id} className="card">
