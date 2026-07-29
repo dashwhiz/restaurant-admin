@@ -5,7 +5,7 @@ import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
 import { useToast } from '@/components/ui/Toast';
 import { IconPlus, IconEdit, IconTrash, IconSearch, IconChevron } from '@/components/ui/Icons';
 import { fmtMKD, fmtDate, fmtTime } from '@/lib/format';
-import { exportCsv } from '@/lib/csv';
+import { exportCsv, downloadCsv, toCsv } from '@/lib/csv';
 import Link from 'next/link';
 import { IconScan } from '@/components/ui/Icons';
 import { listProducts } from '@/lib/services/products';
@@ -116,22 +116,34 @@ export default function DeliveriesPage() {
     }
   }
 
+  function rowsFor(list: DeliveryRow[]) {
+    return list.map((r) => ({
+      датум: (r.created_at || '').slice(0, 10),
+      производ: r.product?.name ?? '',
+      количина: r.quantity ?? 0,
+      цена_без_ддв: r.cost_per_unit ?? 0,
+      ддв: r.ddv_rate ?? 0,
+      цена_со_ддв: r.price_with_ddv ?? 0,
+      вкупно: (r.quantity || 0) * (r.cost_per_unit ?? 0),
+      добавувач: r.supplier ?? '',
+      белешка: r.notes ?? '',
+    }));
+  }
+
   function exportRows() {
-    const n = exportCsv(
-      'isporaki',
-      filtered.map((r) => ({
-        датум: (r.created_at || '').slice(0, 10),
-        производ: r.product?.name ?? '',
-        количина: r.quantity ?? 0,
-        цена_без_ддв: r.cost_per_unit ?? 0,
-        ддв: r.ddv_rate ?? 0,
-        цена_со_ддв: r.price_with_ddv ?? 0,
-        вкупно: (r.quantity || 0) * (r.cost_per_unit ?? 0),
-        добавувач: r.supplier ?? '',
-        белешка: r.notes ?? '',
-      })),
-    );
+    const n = exportCsv('isporaki', rowsFor(filtered));
     toast(n > 0 ? `Преземени ${n} испораки` : 'Нема што да се преземе', n > 0 ? 'success' : 'error');
+  }
+
+  // Filenames need to survive the filesystem — spaces and punctuation in a
+  // supplier name don't.
+  function slug(s: string): string {
+    return s.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}-]/gu, '');
+  }
+
+  function exportGroup(g: Group) {
+    downloadCsv(`lira-isporaki-${slug(g.label)}.csv`, toCsv(rowsFor(g.rows)));
+    toast(`Преземени испораки за ${g.label}`, 'success');
   }
 
   return (
@@ -206,15 +218,26 @@ export default function DeliveriesPage() {
             const open = openGroups.has(g.key);
             return (
               <div key={g.key} className="overflow-hidden rounded-xl border border-border">
-                <button
-                  onClick={() => toggle(g.key)}
-                  className="flex w-full items-center gap-3 bg-surface px-4 py-3 text-left"
-                >
-                  <IconChevron className={`h-4 w-4 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
-                  <span className="flex-1 font-bold">{g.label}</span>
-                  <span className="text-xs text-muted">{g.rows.length} ставки</span>
-                  {g.total > 0 && <span className="font-bold">{fmtMKD(g.total)}</span>}
-                </button>
+                {/* Siblings, not nested — a button inside a button is invalid
+                    and the inner one stops working. */}
+                <div className="flex w-full items-center bg-surface pr-2">
+                  <button
+                    onClick={() => toggle(g.key)}
+                    className="flex flex-1 items-center gap-3 px-4 py-3 text-left"
+                  >
+                    <IconChevron className={`h-4 w-4 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
+                    <span className="flex-1 font-bold">{g.label}</span>
+                    <span className="text-xs text-muted">{g.rows.length} ставки</span>
+                    {g.total > 0 && <span className="font-bold">{fmtMKD(g.total)}</span>}
+                  </button>
+                  <button
+                    className="btn-ghost shrink-0 px-2 py-1 text-xs"
+                    title={`Преземи CSV за ${g.label}`}
+                    onClick={() => exportGroup(g)}
+                  >
+                    CSV
+                  </button>
+                </div>
                 {open && (
                   <div className="overflow-x-auto border-t border-border">
                     <table className="w-full text-sm">
