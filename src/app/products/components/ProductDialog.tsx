@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
-import { createProduct, updateProduct, type ProductInput } from '@/lib/services/products';
+import { createProduct, updateProduct } from '@/lib/services/products';
 import type { Product } from '@/lib/types';
 import { num } from '@/lib/format';
 
@@ -39,7 +39,7 @@ export function ProductDialog({
     if (!form.name.trim()) return toast('Внеси назив', 'error');
     setSaving(true);
     try {
-      const input: ProductInput = {
+      const input = {
         name: form.name.trim(),
         category: form.category.trim() || 'Општо',
         unit: form.unit,
@@ -47,14 +47,21 @@ export function ProductDialog({
         current_stock: num(form.current_stock),
         min_stock: num(form.min_stock),
         cost_per_unit: num(form.cost_per_unit),
-        yield_pct: 100,
-        kalo_defrost: 0,
-        kalo_trim: 0,
-        serving_size: null,
-        serving_unit: null,
       };
+      // Кало (yield/defrost/trim) and serving size aren't editable from this
+      // form — only set sensible defaults on a brand new product, and leave an
+      // existing one's Кало-page values alone. Resending 0s here on every save
+      // used to silently wipe out whatever was set on the Кало page.
       if (product) await updateProduct(product.id, input);
-      else await createProduct(input);
+      else
+        await createProduct({
+          ...input,
+          yield_pct: 100,
+          kalo_defrost: 0,
+          kalo_trim: 0,
+          serving_size: null,
+          serving_unit: null,
+        });
       toast(product ? 'Зачувано' : 'Додадено', 'success');
       onSaved();
       onClose();
