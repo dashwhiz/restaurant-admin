@@ -36,19 +36,20 @@ export default function KaloPage() {
     try {
       const p = await listProducts();
       setProducts(p);
-      // Never configured (both null) → offer a researched starting point
-      // instead of 0, if the name matches a known ingredient. Still just a
-      // suggestion sitting in the edit box — nothing is written until Зачувај.
+      // Never configured (null, or still the untouched 0 default every
+      // product is created with) → offer a researched starting point instead
+      // of 0, if the name matches a known ingredient. Still just a suggestion
+      // sitting in the edit box — nothing is written until Зачувај.
       const suggestions: Record<string, boolean> = {};
       setEdits(
         Object.fromEntries(
           p.map((x) => {
-            const unset = x.kalo_defrost == null && x.kalo_trim == null;
+            const unset = !x.kalo_defrost && !x.kalo_trim;
             const guess = unset ? suggestKalo(x.name) : null;
             if (guess) suggestions[x.id] = true;
             return [
               x.id,
-              { defrost: String(x.kalo_defrost ?? guess?.defrost ?? 0), trim: String(x.kalo_trim ?? guess?.trim ?? 0) },
+              { defrost: String(guess?.defrost ?? x.kalo_defrost ?? 0), trim: String(guess?.trim ?? x.kalo_trim ?? 0) },
             ];
           }),
         ),
