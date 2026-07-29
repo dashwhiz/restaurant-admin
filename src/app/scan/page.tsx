@@ -21,6 +21,7 @@ import {
   type ImportLine,
 } from '@/lib/services/scan';
 import { bestMatch } from '@/lib/pos/match';
+import { ProductPicker } from './components/ProductPicker';
 import type { Product } from '@/lib/types';
 
 const UNITS = ['L', 'ml', 'kg', 'g', 'bottle', 'can', 'piece', 'portion', 'pack', 'bag', 'box'];
@@ -68,13 +69,26 @@ export default function ScanPage() {
           const rememberedId = remembered.get(scanMapKey(scan.supplier, it.name));
           const known = rememberedId ? prods.find((p) => p.id === rememberedId) : undefined;
           const m = known ? null : bestMatch(it.name, prods);
+          // Со-ДДВ is derived from без-ДДВ × (1 + rate), not taken as read off
+          // the invoice — an invoice usually prints без-ДДВ and the rate
+          // clearly, so trust those over Claude's own со-ДДВ reading. Fiscal
+          // receipts only print со-ДДВ (no base), so fall back to the read
+          // value when there's no base to calculate from.
+          const rate = it.ddv_rate != null ? it.ddv_rate : 18;
+          const base = it.price_without_ddv;
+          const priceDDV =
+            base != null && base > 0
+              ? (base * (1 + rate / 100)).toFixed(2)
+              : it.price_with_ddv != null
+                ? String(it.price_with_ddv)
+                : '';
           return {
             name: it.name,
             quantity: it.quantity != null ? String(it.quantity) : '',
             unit: it.unit && UNITS.includes(it.unit) ? it.unit : 'piece',
             priceNoDDV: it.price_without_ddv != null ? String(it.price_without_ddv) : '',
             ddvRate: it.ddv_rate != null ? String(it.ddv_rate) : '18',
-            priceDDV: it.price_with_ddv != null ? String(it.price_with_ddv) : '',
+            priceDDV,
             target: known ? known.id : m ? m.item.id : NEW_PRODUCT,
             matchName: known ? known.name : m ? m.item.name : null,
             matchPct: known ? 100 : m ? Math.round(m.score * 100) : 0,
@@ -300,15 +314,11 @@ export default function ScanPage() {
                         />
                       </td>
                       <td className="p-2">
-                        <select
-                          className="input min-w-40 py-1"
+                        <ProductPicker
                           value={r.target}
-                          onChange={(e) => patch(i, { target: e.target.value })}
-                        >
-                          <option value={NEW_PRODUCT}>+ Нов производ</option>
-                          <option value={SKIP}>Прескокни</option>
-                          {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
+                          products={products}
+                          onChange={(next) => patch(i, { target: next })}
+                        />
                       </td>
                     </tr>
                   ))}
