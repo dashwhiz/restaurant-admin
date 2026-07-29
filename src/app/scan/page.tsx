@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/PageHeader';
@@ -45,6 +45,42 @@ function num(v: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+// A scan already spent a Claude Vision call — don't lose that review if the
+// tab or app closes before you confirm or cancel it. Kept in localStorage
+// (not sessionStorage) so it survives closing the app entirely, not just a
+// reload.
+const DRAFT_KEY = 'lira-scan-draft';
+
+interface Draft {
+  result: ScanResult;
+  rows: Row[];
+}
+
+function loadDraft(): Draft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? (JSON.parse(raw) as Draft) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(draft: Draft) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // storage full/unavailable — losing the recovery safety net isn't fatal
+  }
+}
+
+function clearDraft() {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export default function ScanPage() {
   const toast = useToast();
   const [phase, setPhase] = useState<'idle' | 'scanning' | 'review'>('idle');
@@ -52,6 +88,25 @@ export default function ScanPage() {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
+
+  // Resume an unfinished review left over from before the app closed. Loads
+  // products first so the review table doesn't flash with blank match names.
+  useEffect(() => {
+    const draft = loadDraft();
+    if (!draft) return;
+    (async () => {
+      const prods = await listProducts().catch(() => []);
+      setProducts(prods);
+      setResult(draft.result);
+      setRows(draft.rows);
+      setPhase('review');
+    })();
+  }, []);
+
+  // Keep the draft in sync with every edit while reviewing.
+  useEffect(() => {
+    if (phase === 'review' && result) saveDraft({ result, rows });
+  }, [phase, result, rows]);
 
   async function onFile(file: File) {
     setPhase('scanning');
@@ -127,6 +182,7 @@ export default function ScanPage() {
     setPhase('idle');
     setResult(null);
     setRows([]);
+    clearDraft();
   }
 
   async function confirm() {
