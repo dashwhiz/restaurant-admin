@@ -15,6 +15,17 @@ import type { Product, Recipe } from '@/lib/types';
 
 const CATEGORIES = ['Храна', 'Пијалок', 'Десерт', 'Предјадење'];
 
+// Quantity kept as a string while editing — a controlled number input that
+// parses on every keystroke snaps "0" back to "" (0 is falsy), which makes it
+// impossible to type a leading "0." before something like 0.05.
+interface Row {
+  product_id: string;
+  quantity: string;
+}
+
+const toRows = (items: IngredientDraft[]): Row[] =>
+  items.map((i) => ({ product_id: i.product_id, quantity: i.quantity ? String(i.quantity) : '' }));
+
 export function RecipeDialog({
   open,
   recipe,
@@ -33,17 +44,17 @@ export function RecipeDialog({
   const toast = useToast();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(() => blank(recipe));
-  const [items, setItems] = useState<IngredientDraft[]>(initialIngredients);
+  const [items, setItems] = useState<Row[]>(() => toRows(initialIngredients));
   const [lastId, setLastId] = useState<string | null>(recipe?.id ?? null);
   if (open && (recipe?.id ?? null) !== lastId) {
     setLastId(recipe?.id ?? null);
     setForm(blank(recipe));
-    setItems(initialIngredients);
+    setItems(toRows(initialIngredients));
   }
   const set = (p: Partial<ReturnType<typeof blank>>) => setForm((f) => ({ ...f, ...p }));
 
-  const addRow = () => setItems((it) => [...it, { product_id: '', quantity: 0 }]);
-  const setRow = (i: number, patch: Partial<IngredientDraft>) =>
+  const addRow = () => setItems((it) => [...it, { product_id: '', quantity: '' }]);
+  const setRow = (i: number, patch: Partial<Row>) =>
     setItems((it) => it.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   const removeRow = (i: number) => setItems((it) => it.filter((_, idx) => idx !== i));
 
@@ -58,7 +69,7 @@ export function RecipeDialog({
         selling_price: num(form.selling_price),
       };
       const id = recipe ? (await updateRecipe(recipe.id, input), recipe.id) : (await createRecipe(input)).id;
-      await setRecipeIngredients(id, ings.map((i) => ({ product_id: i.product_id, quantity: num(i.quantity) })));
+      await setRecipeIngredients(id, ings.map((i): IngredientDraft => ({ product_id: i.product_id, quantity: num(i.quantity) })));
       toast(recipe ? 'Зачувано' : 'Додадено', 'success');
       onSaved();
       onClose();
@@ -125,8 +136,8 @@ export function RecipeDialog({
                     type="number"
                     step="0.001"
                     placeholder="кол."
-                    value={row.quantity || ''}
-                    onChange={(e) => setRow(i, { quantity: num(e.target.value) })}
+                    value={row.quantity}
+                    onChange={(e) => setRow(i, { quantity: e.target.value })}
                   />
                   {unit && (
                     <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted">
