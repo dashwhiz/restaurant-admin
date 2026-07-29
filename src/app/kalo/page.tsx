@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { num, fmtMKD, departmentOf } from '@/lib/format';
 import { listProducts, updateProduct } from '@/lib/services/products';
 import { suggestKalo } from '@/lib/kaloDefaults';
+import { ProductPicker } from './components/ProductPicker';
 import type { Product } from '@/lib/types';
 
 // Usable yield after defrosting and trimming losses.
@@ -25,7 +26,6 @@ export default function KaloPage() {
   const [edits, setEdits] = useState<Record<string, Edit>>({});
   const [suggested, setSuggested] = useState<Record<string, boolean>>({});
   const [query, setQuery] = useState('');
-  const [dept, setDept] = useState<'all' | 'Бар' | 'Кујна'>('all');
   const [calcId, setCalcId] = useState('');
   const [calcQty, setCalcQty] = useState('200');
   const [loading, setLoading] = useState(true);
@@ -34,7 +34,9 @@ export default function KaloPage() {
   async function load() {
     setLoading(true);
     try {
-      const p = await listProducts();
+      // Кало/крш is raw-prep loss (defrosting, trimming) — only meaningful
+      // for kitchen ingredients, not bar stock (bottles, mixers, garnish).
+      const p = (await listProducts()).filter((x) => departmentOf(x.department || x.category) === 'Кујна');
       setProducts(p);
       // Never configured (null, or still the untouched 0 default every
       // product is created with) → offer a researched starting point instead
@@ -68,12 +70,8 @@ export default function KaloPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return products.filter((p) => {
-      if (q && !p.name.toLowerCase().includes(q)) return false;
-      if (dept !== 'all' && departmentOf(p.department || p.category) !== dept) return false;
-      return true;
-    });
-  }, [products, query, dept]);
+    return products.filter((p) => !q || p.name.toLowerCase().includes(q));
+  }, [products, query]);
 
   // Works backwards from a recipe portion to the raw quantity you must buy:
   // the portion is what's left AFTER defrost and trim losses.
@@ -140,17 +138,7 @@ export default function KaloPage() {
           останува ПОСЛЕ одмрзнување и чистење.
         </p>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <select
-            className="select sm:flex-1"
-            aria-label="Производ"
-            value={calcId}
-            onChange={(e) => setCalcId(e.target.value)}
-          >
-            <option value="">Избери производ…</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
+          <ProductPicker value={calcId} products={products} onChange={setCalcId} />
           <input
             className="input sm:w-32"
             type="number"
@@ -200,18 +188,6 @@ export default function KaloPage() {
             </div>
           </dl>
         )}
-      </div>
-
-      <div className="mb-3 flex flex-wrap gap-1">
-        {(['all', 'Бар', 'Кујна'] as const).map((d) => (
-          <button
-            key={d}
-            className={dept === d ? 'btn-ghost border-primary text-primary' : 'btn-ghost'}
-            onClick={() => setDept(d)}
-          >
-            {d === 'all' ? 'Сите' : d}
-          </button>
-        ))}
       </div>
 
       <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-surface px-3">
