@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
 import { useToast } from '@/components/ui/Toast';
 import { IconSearch } from '@/components/ui/Icons';
+import { Badge } from '@/components/ui/Badge';
 import { num, fmtMKD, departmentOf } from '@/lib/format';
 import { listProducts, updateProduct } from '@/lib/services/products';
+import { suggestKalo } from '@/lib/kaloDefaults';
 import type { Product } from '@/lib/types';
 
 // Usable yield after defrosting and trimming losses.
@@ -21,6 +23,7 @@ export default function KaloPage() {
   const toast = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [edits, setEdits] = useState<Record<string, Edit>>({});
+  const [suggested, setSuggested] = useState<Record<string, boolean>>({});
   const [query, setQuery] = useState('');
   const [dept, setDept] = useState<'all' | 'Бар' | 'Кујна'>('all');
   const [calcId, setCalcId] = useState('');
@@ -33,11 +36,24 @@ export default function KaloPage() {
     try {
       const p = await listProducts();
       setProducts(p);
+      // Never configured (both null) → offer a researched starting point
+      // instead of 0, if the name matches a known ingredient. Still just a
+      // suggestion sitting in the edit box — nothing is written until Зачувај.
+      const suggestions: Record<string, boolean> = {};
       setEdits(
         Object.fromEntries(
-          p.map((x) => [x.id, { defrost: String(x.kalo_defrost ?? 0), trim: String(x.kalo_trim ?? 0) }]),
+          p.map((x) => {
+            const unset = x.kalo_defrost == null && x.kalo_trim == null;
+            const guess = unset ? suggestKalo(x.name) : null;
+            if (guess) suggestions[x.id] = true;
+            return [
+              x.id,
+              { defrost: String(x.kalo_defrost ?? guess?.defrost ?? 0), trim: String(x.kalo_trim ?? guess?.trim ?? 0) },
+            ];
+          }),
         ),
       );
+      setSuggested(suggestions);
     } catch (e) {
       toast('Грешка при вчитување: ' + (e as Error).message, 'error');
     } finally {
@@ -108,7 +124,7 @@ export default function KaloPage() {
     <>
       <PageHeader
         title="Кало / Крш"
-        subtitle="Загуба при подготовка (одмрзнување, транжирање). Не влијае на цената на готвење."
+        subtitle="Загуба при подготовка (одмрзнување, транжирање). Не влијае на цената на готвење. Производи означени со „Предложено“ имаат автоматски предложена вредност — провери ја пред да зачуваш."
         actions={
           <button className="btn-primary" onClick={saveAll} disabled={saving || changed.length === 0}>
             {saving ? 'Зачувување…' : `Зачувај (${changed.length})`}
@@ -225,15 +241,26 @@ export default function KaloPage() {
             <tbody>
               {filtered.map((p) => {
                 const e = edits[p.id] ?? { defrost: '0', trim: '0' };
+                const isSuggested = suggested[p.id];
                 return (
                   <tr key={p.id} className="border-b border-border/60 last:border-0">
-                    <td className="p-3 font-semibold">{p.name}</td>
+                    <td className="p-3 font-semibold">
+                      {p.name}
+                      {isSuggested && (
+                        <span className="ml-2" title="Автоматски предложена вредност — провери и зачувај">
+                          <Badge tone="blue">Предложено</Badge>
+                        </span>
+                      )}
+                    </td>
                     <td className="p-3 text-right">
                       <input
                         className="input w-20 text-right"
                         type="number"
                         value={e.defrost}
-                        onChange={(ev) => setEdits((s) => ({ ...s, [p.id]: { ...e, defrost: ev.target.value } }))}
+                        onChange={(ev) => {
+                          setSuggested((s) => (s[p.id] ? { ...s, [p.id]: false } : s));
+                          setEdits((s) => ({ ...s, [p.id]: { ...e, defrost: ev.target.value } }));
+                        }}
                       />
                     </td>
                     <td className="p-3 text-right">
@@ -241,7 +268,10 @@ export default function KaloPage() {
                         className="input w-20 text-right"
                         type="number"
                         value={e.trim}
-                        onChange={(ev) => setEdits((s) => ({ ...s, [p.id]: { ...e, trim: ev.target.value } }))}
+                        onChange={(ev) => {
+                          setSuggested((s) => (s[p.id] ? { ...s, [p.id]: false } : s));
+                          setEdits((s) => ({ ...s, [p.id]: { ...e, trim: ev.target.value } }));
+                        }}
                       />
                     </td>
                     <td className="p-3 text-right font-medium">{yieldPct(num(e.defrost), num(e.trim))}%</td>
