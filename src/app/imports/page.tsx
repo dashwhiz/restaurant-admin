@@ -85,7 +85,12 @@ export default function ImportsPage() {
     setBusy(true);
     try {
       const r = await importSifrarnik(result.products, result.recipes, { doProducts, doRecipes });
-      toast(`Увезено: ${r.products} производи, ${r.recipes} рецепти`, 'success');
+      const skipped = r.skippedProducts + r.skippedRecipes;
+      toast(
+        `Увезено: ${r.products} производи, ${r.recipes} рецепти` +
+          (skipped ? ` (${skipped} веќе постоеја, прескокнати)` : ''),
+        'success',
+      );
       reset();
     } catch (e) {
       toast('Грешка: ' + (e as Error).message, 'error');

@@ -11,18 +11,31 @@ const TABLE_MISSING = /does not exist|find the table|relation|schema cache/i;
 // absent, stop hitting it — otherwise every import fires doomed requests.
 let mappingsTableMissing = false;
 
+const nameKey = (s: string) => s.trim().toLowerCase();
+
 // ── Šifrarnik (products + recipes) ──────────────────────────────
+// Re-importing the same or a refreshed šifrarnik export used to insert every
+// row again as a brand-new duplicate (e.g. two "Ајс кафе" recipes) — skip
+// names that already exist instead of blindly inserting.
 export async function importSifrarnik(
   products: ParsedItem[],
   recipes: ParsedItem[],
   opts: { doProducts: boolean; doRecipes: boolean },
-): Promise<{ products: number; recipes: number }> {
+): Promise<{ products: number; recipes: number; skippedProducts: number; skippedRecipes: number }> {
   const sb = getSupabase();
   let pc = 0;
   let rc = 0;
+  let skippedProducts = 0;
+  let skippedRecipes = 0;
+
   if (opts.doProducts) {
-    for (let i = 0; i < products.length; i += 50) {
-      const slice = products.slice(i, i + 50).map((p) => ({
+    const { data: existing, error: exErr } = await sb.from('products').select('name');
+    if (exErr) throw exErr;
+    const existingNames = new Set((existing ?? []).map((p) => nameKey(p.name as string)));
+    const toInsert = products.filter((p) => !existingNames.has(nameKey(p.name)));
+    skippedProducts = products.length - toInsert.length;
+    for (let i = 0; i < toInsert.length; i += 50) {
+      const slice = toInsert.slice(i, i + 50).map((p) => ({
         name: p.name, category: p.category, unit: p.unit, department: p.department,
         current_stock: 0, min_stock: 0, cost_per_unit: 0,
       }));
@@ -32,14 +45,19 @@ export async function importSifrarnik(
     }
   }
   if (opts.doRecipes) {
-    for (let i = 0; i < recipes.length; i += 50) {
-      const slice = recipes.slice(i, i + 50).map((r) => ({ name: r.name, category: r.category, selling_price: 0 }));
+    const { data: existing, error: exErr } = await sb.from('recipes').select('name');
+    if (exErr) throw exErr;
+    const existingNames = new Set((existing ?? []).map((r) => nameKey(r.name as string)));
+    const toInsert = recipes.filter((r) => !existingNames.has(nameKey(r.name)));
+    skippedRecipes = recipes.length - toInsert.length;
+    for (let i = 0; i < toInsert.length; i += 50) {
+      const slice = toInsert.slice(i, i + 50).map((r) => ({ name: r.name, category: r.category, selling_price: 0 }));
       const { error } = await sb.from('recipes').insert(slice);
       if (error) throw error;
       rc += slice.length;
     }
   }
-  return { products: pc, recipes: rc };
+  return { products: pc, recipes: rc, skippedProducts, skippedRecipes };
 }
 
 // ── Normativi (recipe → ingredient links) ───────────────────────
