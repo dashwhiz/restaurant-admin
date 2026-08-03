@@ -118,15 +118,33 @@ const UNIT_CONV: Record<string, [string, number]> = {
   gr: ['kg', 1 / 1000], GR: ['kg', 1 / 1000], Gr: ['kg', 1 / 1000],
   ml: ['L', 1 / 1000], ML: ['L', 1 / 1000], Ml: ['L', 1 / 1000],
   KGR: ['kg', 1], LIT: ['L', 1], KOM: ['piece', 1], POR: ['portion', 1], KIT: ['piece', 1], NIZ: ['piece', 1],
+  // The export is inconsistent about case; without these a header unit like
+  // "kgr" isn't recognised and gets glued onto the name ("Телешка салата кгр").
+  kgr: ['kg', 1], lit: ['L', 1], kom: ['piece', 1], por: ['portion', 1],
 };
 
 const KNOWN_UNITS = new Set(Object.keys(UNIT_CONV));
 
-export function parseNormativi(text: string): ParsedNormativ[] {
+/** One line of a normativ, still pointing at whatever šifra the export named. */
+interface RawIngredientRef {
+  sifra: string;
+  name: string;
+  qty: number;
+  /** The raw POS unit token, or null when the line carried no unit. */
+  unit: string | null;
+}
+interface RawBlock {
+  name: string;
+  /** Header unit — the amount one "batch" of this block yields. */
+  unit: string;
+  ingredients: RawIngredientRef[];
+}
+
+function parseNormativiBlocks(text: string): Map<string, RawBlock> {
   const REC_HDR = /^\s{4,6}(\d{6})\s{5,}(.+?)\s*$/;
   const ING_LINE = /^\s+(\d{1,3})\s+(\d{6})\s+(P\s+)?(.+?)\s+([\d.]+)(?:\s+(\w+))?\s*$/;
-  const out: Record<string, ParsedNormativ> = {};
-  let cur: string | null = null;
+  const blocks = new Map<string, RawBlock>();
+  let cur: RawBlock | null = null;
 
   for (const raw of text.split(/\r?\n/)) {
     const t = raw.replace(/\s+$/, '');
@@ -135,7 +153,6 @@ export function parseNormativi(text: string): ParsedNormativ[] {
 
     const hm = REC_HDR.exec(t);
     if (hm) {
-      cur = hm[1];
       // The unit is right-aligned with a wide gap before it, but prepared
       // sub-items used only as ingredients (e.g. "Брускети") have no unit at
       // all. Without this, a header with no unit fails to match, and its
@@ -147,22 +164,95 @@ export function parseNormativi(text: string): ParsedNormativ[] {
         unit = parts.pop()!;
         name = parts.join(' ');
       }
-      out[cur] = { name: cleanPOSName(name.trim()), unit, ingredients: [] };
+      cur = { name: name.trim(), unit, ingredients: [] };
+      blocks.set(hm[1], cur);
       continue;
     }
     if (!cur) continue;
     const im = ING_LINE.exec(t);
     if (!im) continue;
-    const name = im[4].trim();
-    if (!name) continue; // blank-name line in the source export, nothing to link
-    // Ingredient lines referencing a prepared sub-item (flagged "P") often
-    // give a bare count with no unit, e.g. "1 601005 P Брускети 1" = 1 piece.
-    const unitTok = im[6]?.trim();
-    const [unitEn, mult] = unitTok ? UNIT_CONV[unitTok] || [unitTok, 1] : ['piece', 1];
-    const qty = parseFloat((parseFloat(im[5]) * mult).toFixed(6));
-    out[cur].ingredients.push({ name: cleanPOSName(name), qty, unit: unitEn });
+    cur.ingredients.push({
+      sifra: im[2],
+      name: im[4].trim(),
+      qty: parseFloat(im[5]),
+      unit: im[6]?.trim() || null,
+    });
   }
-  return Object.values(out);
+  return blocks;
+}
+
+/**
+ * How many batches of `block` are meant by "use `qty` `unit` of it".
+ * A dish asking for 200 gr of Мајонез, whose own normativ yields 1 KGR, needs
+ * 0.2 of that normativ. When the units aren't comparable (or the line carried
+ * none) the quantity is already a count of batches, so it passes through.
+ */
+function batchesOf(qty: number, unit: string | null, blockUnit: string): number {
+  if (!unit) return qty;
+  const [refCanon, refMult] = UNIT_CONV[unit] ?? [unit, 1];
+  const [blockCanon, blockMult] = UNIT_CONV[blockUnit] ?? [blockUnit, 1];
+  if (refCanon !== blockCanon || !blockMult) return qty;
+  return (qty * refMult) / blockMult;
+}
+
+/**
+ * Resolve one normativ down to raw ingredients only.
+ *
+ * Nearly half the recipes are built from other prepared items — Плескавица is
+ * "200 gr of Мелено месо" and Мелено месо is itself a normativ. Those
+ * references are followed here (by šifra, because names repeat: there are two
+ * different "Руска салата"), so a recipe ends up pointing only at things that
+ * are really bought. Left unresolved they became zero-cost phantom products and
+ * every dish using one under-reported its cost.
+ */
+function expandBlock(
+  sifra: string,
+  blocks: Map<string, RawBlock>,
+  seen: Set<string>,
+): { sifra: string; name: string; qty: number; unit: string }[] {
+  const block = blocks.get(sifra);
+  if (!block || seen.has(sifra)) return []; // `seen` also stops a cyclic export
+  const nested = new Set(seen).add(sifra);
+
+  // Keyed by šifra and held in canonical units (kg/L/piece), so the same
+  // product reached twice — Руска салата's own eggs plus the eggs inside its
+  // мајонез — sums correctly even when the two lines used different units.
+  const merged = new Map<string, { sifra: string; name: string; qty: number; unit: string }>();
+  const add = (row: { sifra: string; name: string; qty: number; unit: string }, scale: number) => {
+    const prev = merged.get(row.sifra);
+    if (prev) prev.qty += row.qty * scale;
+    else merged.set(row.sifra, { ...row, qty: row.qty * scale });
+  };
+
+  for (const ing of block.ingredients) {
+    const sub = blocks.get(ing.sifra);
+    if (sub) {
+      const scale = batchesOf(ing.qty, ing.unit, sub.unit);
+      for (const inner of expandBlock(ing.sifra, blocks, nested)) add(inner, scale);
+    } else if (ing.name) {
+      // A real purchased product; blank-name lines have nothing to link to.
+      const [unit, mult] = ing.unit ? UNIT_CONV[ing.unit] ?? [ing.unit, 1] : ['piece', 1];
+      add({ sifra: ing.sifra, name: ing.name, qty: ing.qty * mult, unit }, 1);
+    }
+  }
+  return [...merged.values()];
+}
+
+export function parseNormativi(text: string): ParsedNormativ[] {
+  const blocks = parseNormativiBlocks(text);
+  const out: ParsedNormativ[] = [];
+  for (const [sifra, block] of blocks) {
+    out.push({
+      name: cleanPOSName(block.name),
+      unit: block.unit,
+      ingredients: expandBlock(sifra, blocks, new Set()).map((ing) => ({
+        name: cleanPOSName(ing.name),
+        qty: parseFloat(ing.qty.toFixed(6)),
+        unit: ing.unit,
+      })),
+    });
+  }
+  return out;
 }
 
 export function parseCenovnik(text: string): ParsedPrice[] {
