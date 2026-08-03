@@ -15,8 +15,8 @@ export interface Product {
   cost_per_unit: number;
   department: Department | string;
   // Kalo / yield — tracked for RAW PREP loss only (defrosting, trimming), NOT
-  // applied during cooking. See docs/features/kalo.md.
-  yield_pct: number | null;
+  // applied during cooking. See docs/features/kalo.md. There is no yield_pct
+  // column: usable yield is derived from these two and computed where shown.
   kalo_defrost: number | null;
   kalo_trim: number | null;
   serving_size: number | null;

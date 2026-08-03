@@ -12,15 +12,16 @@ or spoils.
 - **DO track kalo for raw prep**, so we can see, per product, how much is lost:
   - defrosting frozen → thawed (`kalo_defrost` %)
   - trimming / butchering (`kalo_trim` %) — especially meat, also vegetables
-  - a resulting usable **yield %** (`yield_pct`)
+  - a resulting usable **yield %**, derived from those two
 
 So kalo is a **reference / planning tool on the product**, not a multiplier in
 recipe cost.
 
 ## Data
 
-On `products`: `yield_pct`, `kalo_defrost`, `kalo_trim` (all percentages).
-`yield_pct` is roughly `(1 − defrost%) × (1 − trim%) × 100`.
+On `products`: `kalo_defrost`, `kalo_trim` (both percentages). Usable yield is
+not stored — it's computed where it's shown, as
+`(1 − defrost%) × (1 − trim%) × 100`.
 
 ## The Кало page
 

@@ -108,7 +108,7 @@ export default function KaloPage() {
         const e = edits[p.id];
         const d = num(e.defrost);
         const t = num(e.trim);
-        await updateProduct(p.id, { kalo_defrost: d, kalo_trim: t, yield_pct: yieldPct(d, t) });
+        await updateProduct(p.id, { kalo_defrost: d, kalo_trim: t });
       }
       toast(`Зачувани ${changed.length} производи`, 'success');
       load();

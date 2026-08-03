@@ -9,8 +9,10 @@ without changing the database too.
 ### `products` — raw items / stock
 `id`, `name`, `category`, `unit`, `current_stock`, `min_stock`,
 `cost_per_unit`, `department` (`Бар`/`Кујна`), `created_at`.
-Kalo columns (raw-prep loss only): `yield_pct`, `kalo_defrost`, `kalo_trim`,
-`serving_size`, `serving_unit`. See [`features/kalo.md`](./features/kalo.md).
+Kalo columns (raw-prep loss only): `kalo_defrost`, `kalo_trim`,
+`serving_size`, `serving_unit`. There is **no** `yield_pct` column — usable
+yield is derived from the two kalo percentages.
+See [`features/kalo.md`](./features/kalo.md).
 
 ### `recipes` — sellable items
 `id`, `name`, `category`, `selling_price`, `price_updated_at`, `created_at`.

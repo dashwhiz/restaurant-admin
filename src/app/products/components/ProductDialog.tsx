@@ -56,7 +56,6 @@ export function ProductDialog({
       else
         await createProduct({
           ...input,
-          yield_pct: 100,
           kalo_defrost: 0,
           kalo_trim: 0,
           serving_size: null,
