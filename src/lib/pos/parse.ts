@@ -172,9 +172,14 @@ export function parseCenovnik(text: string): ParsedPrice[] {
     const lines = block.split('\n');
     const hm = lines[0]?.match(/^\s*(\d+)\s+(.+?)(?:\s+KOM|\s*$)/i);
     if (!hm) continue;
+    // Only strip a recognizable serving-size descriptor (a decoded POS symbol
+    // word like "чаша"/"глас" followed by a pour size, e.g. "Амаро ~aša 0.040").
+    // A bare trailing number is often part of the actual article name for
+    // wines/spirits sold by bottle size (e.g. "Бовин 0.2", "Тероар Тиквеш 0.7")
+    // — stripping it collapsed distinct bottle sizes into one name and broke
+    // matching against the recipe list.
     const rawName = hm[2]
       .replace(/\s+[\x00-\x1f\x80-\xff~`^{[\\"]\S*\s*[\d.]*\s*$/, '')
-      .replace(/\s+\d+\.\d+\s*$/, '')
       .trim();
     const name = cleanPOSName(rawName);
     if (!name) continue;
@@ -209,7 +214,11 @@ export function parseDaily(text: string): ParsedDaily {
     const m = DEN_RE.exec(line);
     if (!m) continue;
     const sifra = m[1];
-    const name = cleanPOSName(m[2].trim()).replace(/\s+0\.\d+\s*$/, '').trim() || cleanPOSName(m[2].trim());
+    // Don't strip a trailing bottle/pour size (e.g. "Скопско 0.33" vs "Скопско
+    // 0.5") — it's the part of the name that distinguishes otherwise-identical
+    // recipes, and the recipe list keeps it too. Stripping it collapsed both
+    // sizes to the same bare name and made them fail to match anything.
+    const name = cleanPOSName(m[2].trim());
     const unit = UNIT_MAP[m[3]] || 'piece';
     const nums = (m[4].match(/[\d]+\.[\d]+/g) || []).map(Number);
     if (nums.length < 2) continue;
