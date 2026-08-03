@@ -13,6 +13,25 @@ let mappingsTableMissing = false;
 
 const nameKey = (s: string) => s.trim().toLowerCase();
 
+/**
+ * Keep only the best source row per target recipe.
+ *
+ * Several source lines can land on the same recipe — nine different "… парче"
+ * items once all resolved to "Пита парче". Writing them all meant the last one
+ * silently won for prices, and for normativi it was worse: every match's
+ * ingredients were inserted, so one recipe ended up carrying three dishes'
+ * ingredients at once. Keeping the strongest match makes the outcome defined
+ * and drops the rest for the owner to match by hand.
+ */
+function bestPerTarget<T extends { recipe: { item: Recipe; score: number } }>(rows: T[]): T[] {
+  const byRecipe = new Map<string, T>();
+  for (const row of rows) {
+    const prev = byRecipe.get(row.recipe.item.id);
+    if (!prev || row.recipe.score > prev.recipe.score) byRecipe.set(row.recipe.item.id, row);
+  }
+  return [...byRecipe.values()];
+}
+
 // ── Šifrarnik (products + recipes) ──────────────────────────────
 // Re-importing the same or a refreshed šifrarnik export used to insert every
 // row again as a brand-new duplicate (e.g. two "Ајс кафе" recipes) — skip
@@ -67,9 +86,11 @@ export async function importNormativi(
   dbProducts: Product[],
 ): Promise<{ linked: number; newProducts: number }> {
   const sb = getSupabase();
-  const matched = parsed
-    .map((r) => ({ norm: r, recipe: bestMatch(r.name, dbRecipes) }))
-    .filter((x): x is { norm: ParsedNormativ; recipe: { item: Recipe; score: number } } => !!x.recipe);
+  const matched = bestPerTarget(
+    parsed
+      .map((r) => ({ norm: r, recipe: bestMatch(r.name, dbRecipes) }))
+      .filter((x): x is { norm: ParsedNormativ; recipe: { item: Recipe; score: number } } => !!x.recipe),
+  );
 
   // Resolve each unique ingredient name to a product id (fuzzy); create the rest.
   const resolved = new Map<string, string>();
@@ -125,9 +146,11 @@ export async function importNormativi(
 // ── Cenovnik (recipe prices) ────────────────────────────────────
 export async function importCenovnik(parsed: ParsedPrice[], dbRecipes: Recipe[]): Promise<{ updated: number }> {
   const sb = getSupabase();
-  const matched = parsed
-    .map((p) => ({ price: p.price, recipe: bestMatch(p.name, dbRecipes) }))
-    .filter((x): x is { price: number; recipe: { item: Recipe; score: number } } => !!x.recipe);
+  const matched = bestPerTarget(
+    parsed
+      .map((p) => ({ price: p.price, recipe: bestMatch(p.name, dbRecipes) }))
+      .filter((x): x is { price: number; recipe: { item: Recipe; score: number } } => !!x.recipe),
+  );
   const ts = new Date().toISOString();
   let updated = 0;
   for (let i = 0; i < matched.length; i += 50) {
