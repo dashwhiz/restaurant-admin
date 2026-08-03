@@ -120,9 +120,11 @@ const UNIT_CONV: Record<string, [string, number]> = {
   KGR: ['kg', 1], LIT: ['L', 1], KOM: ['piece', 1], POR: ['portion', 1], KIT: ['piece', 1], NIZ: ['piece', 1],
 };
 
+const KNOWN_UNITS = new Set(Object.keys(UNIT_CONV));
+
 export function parseNormativi(text: string): ParsedNormativ[] {
-  const REC_HDR = /^\s{4,6}(\d{6})\s{5,}(.+?)\s{2,}(\w+)\s*$/;
-  const ING_LINE = /^\s+(\d{1,3})\s+(\d{6})\s+(P\s+)?(.+?)\s+([\d.]+)\s+(\w+)\s*$/;
+  const REC_HDR = /^\s{4,6}(\d{6})\s{5,}(.+?)\s*$/;
+  const ING_LINE = /^\s+(\d{1,3})\s+(\d{6})\s+(P\s+)?(.+?)\s+([\d.]+)(?:\s+(\w+))?\s*$/;
   const out: Record<string, ParsedNormativ> = {};
   let cur: string | null = null;
 
@@ -134,15 +136,31 @@ export function parseNormativi(text: string): ParsedNormativ[] {
     const hm = REC_HDR.exec(t);
     if (hm) {
       cur = hm[1];
-      out[cur] = { name: cleanPOSName(hm[2].trim()), unit: hm[3], ingredients: [] };
+      // The unit is right-aligned with a wide gap before it, but prepared
+      // sub-items used only as ingredients (e.g. "Брускети") have no unit at
+      // all. Without this, a header with no unit fails to match, and its
+      // ingredient lines get silently attached to the previous recipe instead.
+      const parts = hm[2].split(/\s{2,}/).filter(Boolean);
+      let unit = 'KOM';
+      let name = hm[2];
+      if (parts.length > 1 && KNOWN_UNITS.has(parts[parts.length - 1])) {
+        unit = parts.pop()!;
+        name = parts.join(' ');
+      }
+      out[cur] = { name: cleanPOSName(name.trim()), unit, ingredients: [] };
       continue;
     }
     if (!cur) continue;
     const im = ING_LINE.exec(t);
     if (!im) continue;
-    const [unitEn, mult] = UNIT_CONV[im[6].trim()] || [im[6].trim(), 1];
+    const name = im[4].trim();
+    if (!name) continue; // blank-name line in the source export, nothing to link
+    // Ingredient lines referencing a prepared sub-item (flagged "P") often
+    // give a bare count with no unit, e.g. "1 601005 P Брускети 1" = 1 piece.
+    const unitTok = im[6]?.trim();
+    const [unitEn, mult] = unitTok ? UNIT_CONV[unitTok] || [unitTok, 1] : ['piece', 1];
     const qty = parseFloat((parseFloat(im[5]) * mult).toFixed(6));
-    out[cur].ingredients.push({ name: cleanPOSName(im[4].trim()), qty, unit: unitEn });
+    out[cur].ingredients.push({ name: cleanPOSName(name), qty, unit: unitEn });
   }
   return Object.values(out);
 }
