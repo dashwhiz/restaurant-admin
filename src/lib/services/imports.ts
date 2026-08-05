@@ -1,8 +1,9 @@
 // Applies parsed POS data to the database. Batched inserts and parallel updates
 // keep large files fast. See docs/features/pos-import.md.
 import { getSupabase } from '@/lib/supabase';
-import type { Recipe, Product, PosMapping } from '@/lib/types';
+import type { Recipe, Product, PosMapping, Department } from '@/lib/types';
 import { bestMatch } from '@/lib/pos/match';
+import { departmentOf } from '@/lib/format';
 import { fetchAllRows } from './paged';
 import type { ParsedItem, ParsedNormativ, ParsedPrice } from '@/lib/pos/parse';
 
@@ -93,22 +94,34 @@ export async function importNormativi(
   );
 
   // Resolve each unique ingredient name to a product id (fuzzy); create the rest.
+  // A created product takes its department from the recipes that consume it,
+  // and lands in Бар only when every one of them is a drink — hardcoding Кујна
+  // hid auto-created drinks (Скопско 0.33) from the Бар попис, but claiming Бар
+  // on the first drink seen would drag сланина, shared with the kitchen, out of
+  // its own попис. Кујна stays the safe default for anything shared.
   const resolved = new Map<string, string>();
-  const toCreate = new Map<string, { name: string; unit: string }>();
-  for (const { norm } of matched) {
+  const toCreate = new Map<string, { name: string; unit: string; departments: Set<Department> }>();
+  for (const { norm, recipe } of matched) {
+    const dept = departmentOf(recipe.item.category);
     for (const ing of norm.ingredients) {
       const key = ing.name.toLowerCase();
-      if (resolved.has(key) || toCreate.has(key)) continue;
+      if (resolved.has(key)) continue;
+      const pending = toCreate.get(key);
+      if (pending) {
+        pending.departments.add(dept);
+        continue;
+      }
       const pm = bestMatch(ing.name, dbProducts);
       if (pm) resolved.set(key, pm.item.id);
-      else toCreate.set(key, { name: ing.name, unit: ing.unit });
+      else toCreate.set(key, { name: ing.name, unit: ing.unit, departments: new Set([dept]) });
     }
   }
   let newProducts = 0;
   const creates = [...toCreate.values()];
   for (let i = 0; i < creates.length; i += 50) {
     const slice = creates.slice(i, i + 50).map((v) => ({
-      name: v.name, category: 'Суровина', unit: v.unit, department: 'Кујна',
+      name: v.name, category: 'Суровина', unit: v.unit,
+      department: v.departments.has('Кујна') ? 'Кујна' : 'Бар',
       current_stock: 0, min_stock: 0, cost_per_unit: 0,
     }));
     const { data, error } = await sb.from('products').insert(slice).select();
