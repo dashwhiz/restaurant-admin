@@ -125,6 +125,19 @@ const UNIT_CONV: Record<string, [string, number]> = {
 
 const KNOWN_UNITS = new Set(Object.keys(UNIT_CONV));
 
+/**
+ * The unit token of an ingredient line, or null when the export didn't give a
+ * usable one.
+ *
+ * One line reads "PRASE^KA IZNUTRICA  0.2000  220" — a typo where the unit
+ * belongs. ING_LINE captures that as the unit, and an unrecognised token used
+ * to travel all the way into `products.unit`, leaving a product measured in
+ * "220". Anything the POS doesn't define is treated as no unit at all, exactly
+ * like a line that omits one. ING_LINE still matches `\w+` on purpose: refusing
+ * digits there makes the qty capture swallow "220" instead, turning 0.2 into 220.
+ */
+const posUnit = (u: string | null): string | null => (u && KNOWN_UNITS.has(u) ? u : null);
+
 /** One line of a normativ, still pointing at whatever šifra the export named. */
 interface RawIngredientRef {
   sifra: string;
@@ -225,13 +238,14 @@ function expandBlock(
   };
 
   for (const ing of block.ingredients) {
+    const tok = posUnit(ing.unit);
     const sub = blocks.get(ing.sifra);
     if (sub) {
-      const scale = batchesOf(ing.qty, ing.unit, sub.unit);
+      const scale = batchesOf(ing.qty, tok, sub.unit);
       for (const inner of expandBlock(ing.sifra, blocks, nested)) add(inner, scale);
     } else if (ing.name) {
       // A real purchased product; blank-name lines have nothing to link to.
-      const [unit, mult] = ing.unit ? UNIT_CONV[ing.unit] ?? [ing.unit, 1] : ['piece', 1];
+      const [unit, mult] = tok ? UNIT_CONV[tok] : ['piece', 1];
       add({ sifra: ing.sifra, name: ing.name, qty: ing.qty * mult, unit }, 1);
     }
   }
