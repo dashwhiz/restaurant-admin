@@ -16,6 +16,7 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
   Fix whatever comes up — likely prompt tweaks or unit/price parsing.
 - **Watch out:** `SCAN_PROMPT` in `src/lib/services/scan.ts` must stay in sync
   with the prompt in `supabase/functions/scan-invoice/index.ts`.
-- **Setup gotcha:** the owner's copy in `Downloads\restaurant-admin-main` was a
-  ZIP download with no `.git`, so it couldn't commit or push. Work from a real
-  `git clone` of this repo.
+- **Setup:** the owner's working copy is now a real `git clone` at
+  `C:\Users\BerdynaTech\Projects\restaurant-admin`. The old
+  `Downloads\restaurant-admin-main` folder was a ZIP download with no `.git` —
+  don't work there.
