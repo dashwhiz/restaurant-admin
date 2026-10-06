@@ -45,6 +45,18 @@ Browser (/scan page)
 Stock is changed through the shared `applyStockDelta` helper, so a delivery/edit
 stays reversible (same rule as everywhere — see [`stock.md`](./stock.md)).
 
+## Without the API — paste JSON (Залепи JSON)
+
+If you'd rather not use the API key (or it's out of credit), read the invoice
+in a normal Claude chat instead:
+
+1. On `/scan`, click **Залепи JSON** → **Копирај промпт**.
+2. In a Claude chat, attach the invoice photo and paste the prompt.
+3. Copy Claude's JSON reply, paste it into the box, click **Прочитај**.
+
+From there it's the same review table and import as a scan. The prompt
+(`SCAN_PROMPT` in `scan.ts`) must stay in sync with the Edge Function's prompt.
+
 ## Prices and VAT
 
 - `cost_per_unit` stores the **base (без ДДВ)** unit price — that's the real cost.

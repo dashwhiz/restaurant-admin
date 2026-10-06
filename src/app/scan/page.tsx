@@ -10,6 +10,8 @@ import { fmtDate } from '@/lib/format';
 import { listProducts } from '@/lib/services/products';
 import {
   scanInvoice,
+  parseScanJson,
+  SCAN_PROMPT,
   importScannedInvoice,
   getScanMappings,
   saveScanMappings,
@@ -108,11 +110,41 @@ export default function ScanPage() {
     if (phase === 'review' && result) saveDraft({ result, rows });
   }, [phase, result, rows]);
 
+  // Paste-JSON path: same review flow as a scan, without the API call.
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasted, setPasted] = useState('');
+
   async function onFile(file: File) {
+    await startReview(() => scanInvoice(file));
+  }
+
+  async function onPaste() {
+    let scan: ScanResult;
+    try {
+      scan = parseScanJson(pasted);
+    } catch (e) {
+      toast((e as Error).message, 'error');
+      return;
+    }
+    await startReview(async () => scan);
+    setPasted('');
+    setPasteOpen(false);
+  }
+
+  async function copyPrompt() {
+    try {
+      await navigator.clipboard.writeText(SCAN_PROMPT);
+      toast('Промптот е копиран', 'success');
+    } catch {
+      toast('Не може да се копира', 'error');
+    }
+  }
+
+  async function startReview(read: () => Promise<ScanResult>) {
     setPhase('scanning');
     try {
       const [scan, prods, remembered] = await Promise.all([
-        scanInvoice(file),
+        read(),
         listProducts(),
         getScanMappings(),
       ]);
@@ -280,7 +312,31 @@ export default function ScanPage() {
                 onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
               />
             </label>
+
+            <button className="btn-ghost" onClick={() => setPasteOpen((o) => !o)}>
+              Залепи JSON
+            </button>
           </div>
+
+          {pasteOpen && (
+            <div className="mt-3 flex w-full max-w-xl flex-col gap-2 text-left">
+              <span className="text-xs text-muted">
+                Прикачи ја фактурата во Claude заедно со промптот, па залепи го JSON-от што ќе го врати.
+              </span>
+              <textarea
+                className="input min-h-40 font-mono text-xs"
+                placeholder='{ "supplier": …, "items": [ … ] }'
+                value={pasted}
+                onChange={(e) => setPasted(e.target.value)}
+              />
+              <div className="flex justify-end gap-2">
+                <button className="btn-ghost" onClick={copyPrompt}>Копирај промпт</button>
+                <button className="btn-primary" onClick={onPaste} disabled={!pasted.trim()}>
+                  Прочитај
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

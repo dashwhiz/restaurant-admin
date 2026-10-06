@@ -34,6 +34,74 @@ export async function scanInvoice(file: File): Promise<ScanResult> {
   return data as ScanResult;
 }
 
+// ── Pasted JSON (no API call) ─────────────────────────────────
+// Alternative to scanInvoice: upload the invoice to Claude yourself with
+// SCAN_PROMPT, then paste its JSON reply. Same ScanResult, same review flow.
+// Keep the prompt in sync with supabase/functions/scan-invoice/index.ts.
+export const SCAN_PROMPT = `You are analyzing a Macedonian restaurant supply invoice, fiscal receipt, or delivery note (фактура / фискална сметка / испратница). The text is usually in Macedonian Cyrillic.
+Read it carefully and extract EVERY product line. Return ONLY valid JSON — no explanation, no markdown, no reasoning text before or after.
+
+Return exactly this structure:
+{
+  "supplier": "supplier name, or null",
+  "invoice_number": "invoice number or null",
+  "invoice_date": "YYYY-MM-DD or null",
+  "doc_type": "invoice | fiscal | note",
+  "items": [
+    { "name": "product name EXACTLY as printed (keep Macedonian Cyrillic; do NOT translate)",
+      "quantity": 5, "unit": "kg", "price_without_ddv": 100.00, "ddv_rate": 18, "price_with_ddv": 118.00 }
+  ]
+}
+
+Rules:
+- Keep product names in their original language/script. Do NOT translate.
+- Extract EVERY product line, even if some prices are missing.
+- Units must be one of: L, ml, kg, g, bottle, can, piece, portion, pack, bag, box. Map КГ→kg, Л→L, КОМ/ПАРЧ→piece, ПОР→portion. If a case/carton shows a piece count, convert to pieces.
+- ddv_rate is a number only (5, 10 or 18), not "18%".
+- Prices are PER SINGLE UNIT, not line totals. A fiscal receipt's prices INCLUDE VAT (fill price_with_ddv, leave price_without_ddv null); an invoice usually lists price without VAT. Use null for any price you cannot read.
+- doc_type: "fiscal" for a фискална сметка, "note" for испратница, otherwise "invoice".`;
+
+const numOrNull = (v: unknown): number | null => {
+  const n = typeof v === 'string' ? parseFloat(v.replace(',', '.')) : v;
+  return typeof n === 'number' && Number.isFinite(n) ? n : null;
+};
+const strOrNull = (v: unknown): string | null =>
+  typeof v === 'string' && v.trim() ? v.trim() : null;
+
+/** Parse JSON pasted from a Claude chat into a ScanResult. Tolerates ```json
+ *  fences and text around the object; throws a Macedonian message otherwise. */
+export function parseScanJson(text: string): ScanResult {
+  let clean = text.replace(/```json|```/g, '').trim();
+  const first = clean.indexOf('{');
+  const last = clean.lastIndexOf('}');
+  if (first >= 0 && last > first) clean = clean.slice(first, last + 1);
+
+  let raw: Record<string, unknown>;
+  try {
+    raw = JSON.parse(clean);
+  } catch {
+    throw new Error('Ова не е валиден JSON.');
+  }
+  if (!raw || !Array.isArray(raw.items)) throw new Error('JSON-от нема листа "items".');
+
+  return {
+    supplier: strOrNull(raw.supplier),
+    invoice_number: strOrNull(raw.invoice_number),
+    invoice_date: strOrNull(raw.invoice_date),
+    doc_type: strOrNull(raw.doc_type) ?? 'invoice',
+    items: (raw.items as Record<string, unknown>[])
+      .filter((it) => it && strOrNull(it.name))
+      .map((it) => ({
+        name: strOrNull(it.name)!,
+        quantity: numOrNull(it.quantity),
+        unit: strOrNull(it.unit),
+        price_without_ddv: numOrNull(it.price_without_ddv),
+        ddv_rate: numOrNull(it.ddv_rate),
+        price_with_ddv: numOrNull(it.price_with_ddv),
+      })),
+  };
+}
+
 // ── Remembered invoice lines ──────────────────────────────────
 // Suppliers word the same product differently ("Шеќер бел 1кг" vs "Секер 1/1"),
 // so once you've told us which product a line means, remember it per supplier.
