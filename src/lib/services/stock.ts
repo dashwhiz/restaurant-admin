@@ -36,3 +36,12 @@ export async function applyRecipeStock(recipeId: string, multiplier: number): Pr
     await applyStockDelta(ing.product_id as string, -(Number(ing.quantity) || 0) * multiplier);
   }
 }
+
+/**
+ * Set every product's stock to 0. Used from Settings after history has been
+ * cleared, since clearing removes rows without reversing their stock effect.
+ */
+export async function resetAllStock(): Promise<void> {
+  const { error } = await getSupabase().from('products').update({ current_stock: 0 }).neq('current_stock', 0);
+  if (error) throw error;
+}

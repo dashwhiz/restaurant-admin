@@ -8,6 +8,7 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { getSession, requireAuth, signOut } from '@/lib/services/auth';
 import { getTableCounts, probeScanner, type TableCount } from '@/lib/services/health';
 import { clearAllData, clearSection, CLEARABLE, type ClearableKey } from '@/lib/services/admin';
+import { resetAllStock } from '@/lib/services/stock';
 import { BACKUP_TABLES, exportAllTables } from '@/lib/services/backup';
 import { fmtDateTime } from '@/lib/format';
 import { getTheme, setTheme, THEME_LABELS, type Theme } from '@/lib/theme';
@@ -21,6 +22,7 @@ export default function SettingsPage() {
   const toast = useToast();
   const [wiping, setWiping] = useState(false);
   const [clearing, setClearing] = useState<ClearableKey | null>(null);
+  const [resetting, setResetting] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [counts, setCounts] = useState<TableCount[] | null>(null);
   const [scannerOk, setScannerOk] = useState<boolean | null>(null);
@@ -86,6 +88,19 @@ export default function SettingsPage() {
       toast('Грешка: ' + (e as Error).message, 'error');
     } finally {
       setClearing(null);
+    }
+  }
+
+  async function resetStock() {
+    if (!confirm('Постави ја залихата на 0 за СИТЕ производи?\n\nПроизводите и рецептите остануваат. Не може да се поништи.')) return;
+    setResetting(true);
+    try {
+      await resetAllStock();
+      toast('Залихата е нулирана', 'success');
+    } catch (e) {
+      toast('Грешка: ' + (e as Error).message, 'error');
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -239,17 +254,27 @@ export default function SettingsPage() {
           <p className="mb-3 text-xs text-muted">
             Брише само една област — обично кога увоз тргнал наопаку. Не може да се врати.
           </p>
+          <p className="mb-3 text-xs font-semibold text-muted">
+            Бришењето историја не ја менува залихата. За чист почеток, после тоа нулирај ја залихата.
+          </p>
           <div className="flex flex-wrap gap-2">
             {CLEARABLE.map((s) => (
               <button
                 key={s.key}
                 className="btn-ghost"
-                disabled={clearing !== null}
+                disabled={clearing !== null || resetting}
                 onClick={() => clearOne(s.key, s.label)}
               >
                 {clearing === s.key ? 'Брише…' : s.label}
               </button>
             ))}
+            <button
+              className="btn-ghost text-danger"
+              disabled={clearing !== null || resetting}
+              onClick={resetStock}
+            >
+              {resetting ? 'Нулира…' : 'Нулирај залиха'}
+            </button>
           </div>
         </div>
 
