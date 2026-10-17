@@ -37,6 +37,8 @@ export interface NavGroup {
 //   Увоз шифрарник — merged into POS Увоз, which detects the file type itself
 //   Преведи имиња  — not ported
 // Скенирај фактура is reached from Испораки, exactly as it was before.
+// Попис is the one deliberate move: renamed "Залиха / Попис" and placed next to
+// Производи at the owner's request (2026-10-17) — under Анализи he couldn't find it.
 export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Преглед',
@@ -46,6 +48,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Каталог',
     items: [
       { href: '/products', label: 'Производи', icon: IconBox },
+      { href: '/stocktake', label: 'Залиха / Попис', icon: IconClipboard },
       { href: '/recipes', label: 'Рецепти', icon: IconBook },
       { href: '/prices', label: 'Цени на рецепти', icon: IconTag },
       { href: '/kalo', label: 'Кало / Крш', icon: IconScale },
@@ -66,7 +69,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/analytics', label: 'Аналитика', icon: IconChart },
       { href: '/orders', label: 'Листа за нарачка', icon: IconClipboard },
-      { href: '/stocktake', label: 'Попис', icon: IconClipboard },
     ],
   },
   {

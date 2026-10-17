@@ -15,6 +15,8 @@ export default function StocktakePage() {
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [query, setQuery] = useState('');
   const [dept, setDept] = useState<'all' | 'Бар' | 'Кујна'>('all');
+  // Most of the ~700 products sit at 0; these narrow the list to the ones worth checking.
+  const [stockFilter, setStockFilter] = useState<'all' | 'nonzero' | 'negative'>('all');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -39,9 +41,12 @@ export default function StocktakePage() {
     return products.filter((p) => {
       if (q && !p.name.toLowerCase().includes(q)) return false;
       if (dept !== 'all' && departmentOf(p.department || p.category) !== dept) return false;
+      const stock = Number(p.current_stock) || 0;
+      if (stockFilter === 'nonzero' && stock === 0) return false;
+      if (stockFilter === 'negative' && stock >= 0) return false;
       return true;
     });
-  }, [products, query, dept]);
+  }, [products, query, dept, stockFilter]);
 
   const entered = Object.entries(counts).filter(([, v]) => v !== '');
 
@@ -69,7 +74,7 @@ export default function StocktakePage() {
   return (
     <>
       <PageHeader
-        title="Попис"
+        title="Залиха / Попис"
         subtitle="Внеси избројана количина — залихата се поставува на неа"
         actions={
           <button className="btn-primary" onClick={submit} disabled={saving || entered.length === 0}>
@@ -86,6 +91,20 @@ export default function StocktakePage() {
             onClick={() => setDept(d)}
           >
             {d === 'all' ? 'Сите' : d}
+          </button>
+        ))}
+        <span className="mx-1 w-px self-stretch bg-border" />
+        {([
+          ['all', 'Сите залихи'],
+          ['nonzero', 'Само со залиха'],
+          ['negative', 'Само негативни'],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            className={stockFilter === key ? 'btn-ghost border-primary text-primary' : 'btn-ghost'}
+            onClick={() => setStockFilter(key)}
+          >
+            {label}
           </button>
         ))}
       </div>
