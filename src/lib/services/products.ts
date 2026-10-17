@@ -30,6 +30,11 @@ export async function updateProduct(id: string, input: Partial<ProductInput>): P
   if (error) throw error;
 }
 
+/** Save several minimum-stock values at once (from the Залиха / Попис table). */
+export async function setMinStocks(changes: { id: string; min_stock: number }[]): Promise<void> {
+  for (const c of changes) await updateProduct(c.id, { min_stock: c.min_stock });
+}
+
 /**
  * Delete a product and the rows that reference it. Child rows must go first or
  * the foreign-key constraints reject the delete (same as the old app).

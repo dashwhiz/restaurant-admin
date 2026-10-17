@@ -5,7 +5,7 @@ import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
 import { useToast } from '@/components/ui/Toast';
 import { IconSearch } from '@/components/ui/Icons';
 import { num, departmentOf } from '@/lib/format';
-import { listProducts } from '@/lib/services/products';
+import { listProducts, setMinStocks } from '@/lib/services/products';
 import { submitStocktake, type StocktakeEntry } from '@/lib/services/stocktake';
 import type { Product } from '@/lib/types';
 
@@ -13,6 +13,7 @@ export default function StocktakePage() {
   const toast = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [counts, setCounts] = useState<Record<string, string>>({});
+  const [mins, setMins] = useState<Record<string, string>>({});
   const [query, setQuery] = useState('');
   const [dept, setDept] = useState<'all' | 'Бар' | 'Кујна'>('all');
   // Most of the ~700 products sit at 0; these narrow the list to the ones worth checking.
@@ -28,6 +29,7 @@ export default function StocktakePage() {
     try {
       setProducts(await listProducts());
       setCounts({});
+      setMins({});
     } catch (e) {
       toast('Грешка при вчитување: ' + (e as Error).message, 'error');
     } finally {
@@ -56,6 +58,11 @@ export default function StocktakePage() {
   }, [products, query, dept, stockFilter]);
 
   const entered = Object.entries(counts).filter(([, v]) => v !== '');
+  // Only minimums that actually differ from what's saved count as changes.
+  const minChanges = Object.entries(mins)
+    .map(([id, v]) => ({ id, min_stock: num(v) }))
+    .filter((c) => c.min_stock !== (Number(products.find((p) => p.id === c.id)?.min_stock) || 0));
+  const pending = entered.length + minChanges.length;
 
   async function submit() {
     const entries: StocktakeEntry[] = entered
@@ -64,15 +71,23 @@ export default function StocktakePage() {
         return { product_id: id, system_qty: p.current_stock, counted: num(v) };
       })
       .filter((e) => e.counted !== e.system_qty);
-    if (!entries.length) return toast('Нема промени за зачувување', 'info');
+    if (!entries.length && !minChanges.length) return toast('Нема промени за зачувување', 'info');
     const backdated = countDate && countDate !== today;
     const when = backdated ? ` со датум ${countDate.split('-').reverse().join('.')}` : '';
-    if (!confirm(`Ќе се ажурира залихата за ${entries.length} производи${when}. Продолжи?`)) return;
+    const parts = [
+      entries.length ? `залихата за ${entries.length} производи${when}` : '',
+      minChanges.length ? `минимумот за ${minChanges.length} производи` : '',
+    ].filter(Boolean);
+    if (!confirm(`Ќе се ажурира ${parts.join(' и ')}. Продолжи?`)) return;
     setSaving(true);
     try {
       // Today keeps the real save time; another day is stamped at midday.
-      const n = await submitStocktake(entries, backdated ? countDate : undefined);
-      toast(`Попис зачуван — ажурирани ${n} производи`, 'success');
+      const n = entries.length ? await submitStocktake(entries, backdated ? countDate : undefined) : 0;
+      if (minChanges.length) await setMinStocks(minChanges);
+      const done = [n ? `залиха за ${n}` : '', minChanges.length ? `минимум за ${minChanges.length}` : '']
+        .filter(Boolean)
+        .join(', ');
+      toast(`Зачувано — ${done} производи`, 'success');
       load();
     } catch (e) {
       toast('Грешка: ' + (e as Error).message, 'error');
@@ -98,8 +113,8 @@ export default function StocktakePage() {
                 onChange={(e) => setCountDate(e.target.value)}
               />
             </label>
-            <button className="btn-primary" onClick={submit} disabled={saving || entered.length === 0}>
-              {saving ? 'Зачувување…' : `Зачувај (${entered.length})`}
+            <button className="btn-primary" onClick={submit} disabled={saving || pending === 0}>
+              {saving ? 'Зачувување…' : `Зачувај (${pending})`}
             </button>
           </>
         }
@@ -154,6 +169,7 @@ export default function StocktakePage() {
                 <th className="p-3 text-right">Систем</th>
                 <th className="p-3 text-right">Избројано</th>
                 <th className="p-3 text-right">Разлика</th>
+                <th className="p-3 text-right">Минимум</th>
               </tr>
             </thead>
             <tbody>
@@ -175,6 +191,17 @@ export default function StocktakePage() {
                     </td>
                     <td className={`p-3 text-right font-medium ${diff == null ? 'text-muted' : diff < 0 ? 'text-danger' : diff > 0 ? 'text-success' : ''}`}>
                       {diff == null ? '—' : (diff > 0 ? '+' : '') + Number(diff.toFixed(3))}
+                    </td>
+                    <td className="p-3 text-right">
+                      {/* Empty means 0 — "don't track this product" on the dashboard. */}
+                      <input
+                        className="input w-24 text-right"
+                        type="number"
+                        step="0.001"
+                        min="0"
+                        value={mins[p.id] ?? (Number(p.min_stock) ? String(p.min_stock) : '')}
+                        onChange={(e) => setMins((m) => ({ ...m, [p.id]: e.target.value }))}
+                      />
                     </td>
                   </tr>
                 );
