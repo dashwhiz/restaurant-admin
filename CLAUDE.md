@@ -4,6 +4,15 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-17 — Settings: reset stock (Нулирај залиха)
+
+- **Problem:** the owner cleared all history in Поставки and stock stayed. The
+  "Исчисти по секција" buttons delete rows only and never touch stock, by design.
+- **Done:** added a "Нулирај залиха" button (`resetAllStock` in
+  `src/lib/services/stock.ts`) plus a note saying clearing doesn't change stock.
+  The 12 leftover products were zeroed directly in the DB on 2026-10-17.
+- **Next:** owner checks the button after deploy.
+
 ### 2026-10-06 — Invoice scan: paste JSON (Залепи JSON)
 
 - **Done:** `/scan` can now take JSON pasted from a normal Claude chat instead
