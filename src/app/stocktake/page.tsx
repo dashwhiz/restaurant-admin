@@ -17,6 +17,9 @@ export default function StocktakePage() {
   const [dept, setDept] = useState<'all' | 'Бар' | 'Кујна'>('all');
   // Most of the ~700 products sit at 0; these narrow the list to the ones worth checking.
   const [stockFilter, setStockFilter] = useState<'all' | 'nonzero' | 'negative'>('all');
+  // Set on mount, not at render: a static export would bake in the build date.
+  const [today, setToday] = useState('');
+  const [countDate, setCountDate] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -32,6 +35,10 @@ export default function StocktakePage() {
     }
   }
   useEffect(() => {
+    const d = new Date();
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    setToday(iso);
+    setCountDate(iso);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -58,10 +65,13 @@ export default function StocktakePage() {
       })
       .filter((e) => e.counted !== e.system_qty);
     if (!entries.length) return toast('Нема промени за зачувување', 'info');
-    if (!confirm(`Ќе се ажурира залихата за ${entries.length} производи. Продолжи?`)) return;
+    const backdated = countDate && countDate !== today;
+    const when = backdated ? ` со датум ${countDate.split('-').reverse().join('.')}` : '';
+    if (!confirm(`Ќе се ажурира залихата за ${entries.length} производи${when}. Продолжи?`)) return;
     setSaving(true);
     try {
-      const n = await submitStocktake(entries);
+      // Today keeps the real save time; another day is stamped at midday.
+      const n = await submitStocktake(entries, backdated ? countDate : undefined);
       toast(`Попис зачуван — ажурирани ${n} производи`, 'success');
       load();
     } catch (e) {
@@ -77,9 +87,21 @@ export default function StocktakePage() {
         title="Залиха / Попис"
         subtitle="Внеси избројана количина — залихата се поставува на неа"
         actions={
-          <button className="btn-primary" onClick={submit} disabled={saving || entered.length === 0}>
-            {saving ? 'Зачувување…' : `Зачувај (${entered.length})`}
-          </button>
+          <>
+            <label className="flex items-center gap-2 text-sm text-muted">
+              Датум на попис
+              <input
+                className="input w-auto"
+                type="date"
+                value={countDate}
+                max={today}
+                onChange={(e) => setCountDate(e.target.value)}
+              />
+            </label>
+            <button className="btn-primary" onClick={submit} disabled={saving || entered.length === 0}>
+              {saving ? 'Зачувување…' : `Зачувај (${entered.length})`}
+            </button>
+          </>
         }
       />
 

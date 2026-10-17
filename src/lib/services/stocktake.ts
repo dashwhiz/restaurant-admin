@@ -7,9 +7,15 @@ export interface StocktakeEntry {
   counted: number;
 }
 
-/** Log each non-zero difference and set current_stock to the counted amount. */
-export async function submitStocktake(entries: StocktakeEntry[]): Promise<number> {
+/**
+ * Log each non-zero difference and set current_stock to the counted amount.
+ * `countedOn` (YYYY-MM-DD) dates the log rows; omit it to stamp the current
+ * time. Only the log is dated — stock is always set to the count right away.
+ */
+export async function submitStocktake(entries: StocktakeEntry[], countedOn?: string): Promise<number> {
   const sb = getSupabase();
+  // Midday UTC, same as the POS import, so the day never shifts across time zones.
+  const createdAt = countedOn ? { created_at: `${countedOn}T12:00:00Z` } : {};
   let updated = 0;
   for (const e of entries) {
     const diff = e.counted - e.system_qty;
@@ -19,6 +25,7 @@ export async function submitStocktake(entries: StocktakeEntry[]): Promise<number
       system_qty: e.system_qty,
       counted_qty: e.counted,
       difference: diff,
+      ...createdAt,
     });
     if (logErr) throw logErr;
     const { error } = await sb.from('products').update({ current_stock: e.counted }).eq('id', e.product_id);
