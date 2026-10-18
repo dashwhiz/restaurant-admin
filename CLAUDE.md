@@ -4,6 +4,21 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-18 — POS import warnings
+
+- **Done:** daily POS import (single day and multi-day) now shows yellow
+  warnings above the import button and asks for confirmation before importing
+  when (1) items have no recipe chosen — they'd be silently dropped — or (2) a
+  matched recipe has no normativ, so the sale is saved but no stock is deducted.
+  (2) only shows when "Одземи од залиха" is ticked. Items set to "Прескокни"
+  don't warn. Shared box: `src/app/imports/components/ImportWarning.tsx`;
+  `recipesWithIngredients()` in `recipes.ts`.
+- **Data:** 83 of 770 recipes have no normativ; only "Пржен" has been sold so
+  far (already imported without deducting stock). Owner told to add its
+  ingredients if it should deduct.
+- **Shipped:** `b52dc15`, `13ca651`. Build green; not clicked through by Claude
+  (needs login). Owner will see it on the next POS import. Review was inline.
+
 ### 2026-10-18 — Product history window
 
 - **Done:** clicking a product name on Производи or Залиха / Попис opens
@@ -18,6 +33,9 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
 - **Verified:** build green; a hand-run SQL timeline for Павлака (count 3 −
   0.231 − 0.6) matches its stock of 2.169. Owner confirmed on the live site
   that Павлака's history shows. Review was inline, not the full review.
+- **Shipped:** `ab548d7` (reset log), `bf54ec8` (history window).
+- **Next:** owner keeps reporting from the restaurant; scan paste-JSON test
+  (2026-10-07) still unconfirmed.
 
 ### 2026-10-17 — Stock clean-up, Залиха / Попис page, minimums
 
