@@ -4,6 +4,14 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-18 — Event menu recipe search
+
+- **Done:** in Настани → Мени (по гостин), the recipe dropdown is now a
+  type-to-search box (`src/app/events/components/RecipePicker.tsx`, a copy of
+  the imports picker without "Прескокни"). Arrow keys + Enter work.
+- **Status:** build green; not clicked through by Claude (needs login). Inline
+  review only.
+
 ### 2026-10-18 — POS import warnings
 
 - **Done:** daily POS import (single day and multi-day) now shows yellow
