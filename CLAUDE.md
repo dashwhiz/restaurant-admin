@@ -14,9 +14,14 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
   stock (e.g. Јагнешко Месо +0.96 kg).
 - **Code:** import keeps 3 decimals; manual sale form accepts decimals; the
   daily parser now reads lines with no unit (БРУСКЕТИ was silently dropped).
-- **Open:** no "Брускети" recipe exists (šifrarnik line likely also has no
-  unit — parser not changed, no sample file). The 2 Брускети of 2026-10-17
-  were never recorded; owner to create the recipe, then add the sale.
+- **Брускети:** owner created the recipe (180 ден; Домат-сув 2 piece, Сирење
+  0.1 kg, Леб 0.2 kg). The 2 sold on 2026-10-17 were added directly in the DB
+  with stock deducted, and POS šifra 601005 mapped to it. The šifrarnik parser
+  still skips unitless lines (no sample file to test against).
+- **REMINDER — Домат-сув:** stock is −4.05 piece because it was never counted.
+  Owner chose to leave it for now. When the first Домат-сув delivery is
+  entered, remind the owner to check its unit (piece vs kg) and the amount in
+  Брускети + its 2 other recipes, and to set the real stock.
 - **Status:** build green; parser checked against `Documents\17.10.26.TXT`
   (75 items, Брускети included). Not clicked through. Inline review only.
 
