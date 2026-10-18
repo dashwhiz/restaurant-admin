@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/Toast';
 import { fmtDate } from '@/lib/format';
 import { bestMatch } from '@/lib/pos/match';
 import type { ParsedDaily } from '@/lib/pos/parse';
-import { listRecipes } from '@/lib/services/recipes';
+import { listRecipes, recipesWithIngredients } from '@/lib/services/recipes';
 import {
   getImportedDays,
   getMappings,
@@ -15,6 +15,7 @@ import {
   type DailySaleInput,
   type MappingInput,
 } from '@/lib/services/imports';
+import { ImportWarning } from './ImportWarning';
 
 const SKIP = '__skip__';
 
@@ -23,6 +24,8 @@ interface DayPlan {
   totalItems: number;
   matched: DailySaleInput[];
   unmatchedNames: string[];
+  /** Matched recipes with no ingredients — sold, but no stock deducted. */
+  noNormativNames: string[];
   alreadyImported: boolean;
 }
 
@@ -45,11 +48,13 @@ export function BulkDailyPreview({ files, onDone }: { files: ParsedDaily[]; onDo
   useEffect(() => {
     (async () => {
       try {
-        const [recipes, maps, importedDays] = await Promise.all([
+        const [recipes, maps, importedDays, withIngredients] = await Promise.all([
           listRecipes(),
           getMappings(),
           getImportedDays(),
+          recipesWithIngredients(),
         ]);
+        const recipeName = new Map(recipes.map((r) => [r.id, r.name]));
         const bySifra = new Map(maps.map((m) => [m.sifra, m]));
         const learned: MappingInput[] = [];
 
@@ -58,6 +63,7 @@ export function BulkDailyPreview({ files, onDone }: { files: ParsedDaily[]; onDo
         const built = sorted.map<DayPlan>((file) => {
           const matched: DailySaleInput[] = [];
           const unmatchedNames: string[] = [];
+          const noNormativ = new Set<string>();
           for (const item of file.items) {
             const remembered = bySifra.get(item.sifra);
             if (remembered?.skip) continue;
@@ -68,12 +74,14 @@ export function BulkDailyPreview({ files, onDone }: { files: ParsedDaily[]; onDo
             }
             if (!remembered) learned.push({ sifra: item.sifra, recipe_id: recipeId, skip: false });
             matched.push({ recipeId, qty: item.qty });
+            if (!withIngredients.has(recipeId)) noNormativ.add(recipeName.get(recipeId) ?? item.name);
           }
           return {
             date: file.date,
             totalItems: file.items.length,
             matched,
             unmatchedNames,
+            noNormativNames: [...noNormativ],
             alreadyImported: importedDays.has(file.date),
           };
         });
@@ -91,17 +99,21 @@ export function BulkDailyPreview({ files, onDone }: { files: ParsedDaily[]; onDo
 
   const withUnmatched = importable.filter((p) => p.unmatchedNames.length > 0);
   const unmatchedTotal = withUnmatched.reduce((n, p) => n + p.unmatchedNames.length, 0);
+  // Only matters when stock is being deducted at all.
+  const noNormativ = deduct ? [...new Set(importable.flatMap((p) => p.noNormativNames))] : [];
 
   async function importAll() {
-    if (
-      unmatchedTotal > 0 &&
-      !window.confirm(
-        `${unmatchedTotal} ставки во ${withUnmatched.length} ден(а) не се поврзани со рецепт и НЕМА да се увезат:\n\n` +
-          withUnmatched.map((p) => `${fmtDate(p.date)}: ${p.unmatchedNames.join(', ')}`).join('\n') +
-          '\n\nПродолжи без нив?',
-      )
-    )
-      return;
+    const problems = [
+      unmatchedTotal
+        ? `${unmatchedTotal} ставки во ${withUnmatched.length} ден(а) не се поврзани со рецепт и НЕМА да се увезат:\n` +
+          withUnmatched.map((p) => `${fmtDate(p.date)}: ${p.unmatchedNames.join(', ')}`).join('\n')
+        : '',
+      noNormativ.length
+        ? `${noNormativ.length} рецепти немаат норматив — продажбата се запишува, но залихата НЕ се одзема:\n` +
+          noNormativ.map((n) => `• ${n}`).join('\n')
+        : '',
+    ].filter(Boolean);
+    if (problems.length && !window.confirm(problems.join('\n\n') + '\n\nПродолжи со увозот?')) return;
     setBusy(true);
     try {
       if (mappings.length > 0) await saveMappings(mappings);
@@ -173,21 +185,27 @@ export function BulkDailyPreview({ files, onDone }: { files: ParsedDaily[]; onDo
       </div>
 
       {unmatchedTotal > 0 && (
-        <div className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
-          <p className="font-semibold">
-            ⚠ {unmatchedTotal} ставки во {withUnmatched.length} ден(а) не се поврзани и нема да се увезат
-          </p>
-          <ul className="mt-1 text-muted">
+        <ImportWarning
+          title={`${unmatchedTotal} ставки во ${withUnmatched.length} ден(а) не се поврзани и нема да се увезат`}
+          hint="За да ги поврзеш, увези го тој ден поединечно — изборот се памти за следниот пат."
+        >
+          <ul>
             {withUnmatched.map((p) => (
               <li key={p.date}>
                 {fmtDate(p.date)}: {p.unmatchedNames.join(', ')}
               </li>
             ))}
           </ul>
-          <p className="mt-1 text-xs text-muted">
-            За да ги поврзеш, увези го тој ден поединечно — изборот се памти за следниот пат.
-          </p>
-        </div>
+        </ImportWarning>
+      )}
+
+      {noNormativ.length > 0 && (
+        <ImportWarning
+          title={`${noNormativ.length} рецепти немаат норматив — залихата нема да се одземе`}
+          hint="Додади состојки во Рецепти, или увези вака и одземи рачно подоцна."
+        >
+          {noNormativ.join(', ')}
+        </ImportWarning>
       )}
 
       <div className="card">

@@ -1,6 +1,7 @@
 // Recipes + their ingredients.
 import { getSupabase } from '@/lib/supabase';
 import type { Recipe, RecipeIngredient } from '@/lib/types';
+import { fetchAllRows } from './paged';
 
 export interface RecipeInput {
   name: string;
@@ -26,6 +27,12 @@ export async function listRecipes(): Promise<Recipe[]> {
     .order('name');
   if (error) throw error;
   return (data ?? []) as Recipe[];
+}
+
+/** Ids of recipes that have at least one ingredient — i.e. a sale deducts stock. */
+export async function recipesWithIngredients(): Promise<Set<string>> {
+  const rows = await fetchAllRows<{ recipe_id: string }>('recipe_ingredients', { select: 'recipe_id' });
+  return new Set(rows.map((r) => r.recipe_id));
 }
 
 /** All ingredient links (with product info) — the list page groups these per recipe. */

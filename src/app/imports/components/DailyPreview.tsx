@@ -6,19 +6,21 @@ import { EmptyState } from '@/components/ui/PageHeader';
 import { useToast } from '@/components/ui/Toast';
 import { IconSearch } from '@/components/ui/Icons';
 import { fmtMKD, fmtDate } from '@/lib/format';
-import { listRecipes } from '@/lib/services/recipes';
+import { listRecipes, recipesWithIngredients } from '@/lib/services/recipes';
 import { createEvent } from '@/lib/services/events';
 import { getMappings, saveMappings, importDaily, type DailySaleInput, type MappingInput } from '@/lib/services/imports';
 import { bestMatch, isSpecialOrder } from '@/lib/pos/match';
 import type { ParsedDaily } from '@/lib/pos/parse';
 import type { Recipe } from '@/lib/types';
 import { RecipePicker, SKIP } from './RecipePicker';
+import { ImportWarning } from './ImportWarning';
 
 
 
 export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: () => void }) {
   const toast = useToast();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [withIngredients, setWithIngredients] = useState<Set<string>>(new Set());
   const [resolutions, setResolutions] = useState<Record<string, string>>({}); // sifra -> recipeId | SKIP | ''
   const [deduct, setDeduct] = useState(true);
   const [query, setQuery] = useState('');
@@ -28,8 +30,9 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
   useEffect(() => {
     (async () => {
       try {
-        const [recs, maps] = await Promise.all([listRecipes(), getMappings()]);
+        const [recs, maps, withIngs] = await Promise.all([listRecipes(), getMappings(), recipesWithIngredients()]);
         setRecipes(recs);
+        setWithIngredients(withIngs);
         const mapBySifra = new Map(maps.map((m) => [m.sifra, m]));
         // Initial resolution per item: remembered mapping → fuzzy match → empty.
         const init: Record<string, string> = {};
@@ -62,17 +65,31 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
   // Undecided rows are silently left out of the import — "Прескокни" is a
   // deliberate choice, an empty picker usually isn't.
   const unmatched = parsed.items.filter((i) => !resolutions[i.sifra]);
+  // Matched to a recipe with no normativ: the sale is recorded but no stock moves.
+  // Only worth flagging when stock is being deducted at all.
+  const noNormativ = deduct
+    ? [
+        ...new Set(
+          parsed.items
+            .map((i) => resolutions[i.sifra])
+            .filter((r) => r && r !== SKIP && !withIngredients.has(r))
+            .map((r) => recipes.find((x) => x.id === r)?.name ?? '?'),
+        ),
+      ]
+    : [];
 
   async function confirm() {
-    if (
-      unmatched.length > 0 &&
-      !window.confirm(
-        `${unmatched.length} ставки не се поврзани со рецепт и НЕМА да се увезат:\n\n` +
-          unmatched.map((i) => `• ${i.name} (${i.qty})`).join('\n') +
-          '\n\nПродолжи без нив?',
-      )
-    )
-      return;
+    const problems = [
+      unmatched.length
+        ? `${unmatched.length} ставки не се поврзани со рецепт и НЕМА да се увезат:\n` +
+          unmatched.map((i) => `• ${i.name} (${i.qty})`).join('\n')
+        : '',
+      noNormativ.length
+        ? `${noNormativ.length} рецепти немаат норматив — продажбата се запишува, но залихата НЕ се одзема:\n` +
+          noNormativ.map((n) => `• ${n}`).join('\n')
+        : '',
+    ].filter(Boolean);
+    if (problems.length && !window.confirm(problems.join('\n\n') + '\n\nПродолжи со увозот?')) return;
     setBusy(true);
     try {
       // Remember every resolution (one batched write) so the same šifra
@@ -183,13 +200,24 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
         )}
       </div>
 
-      {unmatched.length > 0 && (
-        <div className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
-          <p className="font-semibold">
-            ⚠ {unmatched.length} ставки не се поврзани и нема да се увезат
-          </p>
-          <p className="mt-1 text-muted">{unmatched.map((i) => i.name).join(', ')}</p>
-          <p className="mt-1 text-xs text-muted">Избери рецепт или „Прескокни“ за секоја од нив.</p>
+      {(unmatched.length > 0 || noNormativ.length > 0) && (
+        <div className="mt-4 grid gap-2">
+          {unmatched.length > 0 && (
+            <ImportWarning
+              title={`${unmatched.length} ставки не се поврзани и нема да се увезат`}
+              hint="Избери рецепт или „Прескокни“ за секоја од нив."
+            >
+              {unmatched.map((i) => i.name).join(', ')}
+            </ImportWarning>
+          )}
+          {noNormativ.length > 0 && (
+            <ImportWarning
+              title={`${noNormativ.length} рецепти немаат норматив — залихата нема да се одземе`}
+              hint="Додади состојки во Рецепти, или увези вака и одземи рачно подоцна."
+            >
+              {noNormativ.join(', ')}
+            </ImportWarning>
+          )}
         </div>
       )}
 
