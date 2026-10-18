@@ -4,6 +4,35 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-18 — End of day summary
+
+What was done today (details in the entries below):
+- **Настани:** recipe search box in the event menu.
+- **POS import:** special orders default to Прескокни, can be sent to Настани
+  from single- and multi-day imports, no duplicate events. Lines without a
+  unit (Брускети) are no longer dropped.
+- **Sales by weight:** `sales.quantity` is numeric; 17.10 lamb/ribs/knuckle
+  and stock corrected; Брускети recipe created by owner and 17.10 sale added.
+- **Products:** notes field ("Забелешка"); Тиквици unit fixed to kg.
+- **Scan:** pack price divided per piece (app + edge function v5).
+- **ДДВ switch** with per-product / per-recipe rates; margin always without
+  VAT; 38 dishes moved from "Пијалок" to "Храна".
+- **Чај Кесички, final:** the tea is **5%** VAT (owner), not 18%. All 4
+  purchases and the product are now 3.62 ден without VAT / 3.80 with, 304 ден
+  for 80 bags. Invoice 0092 totals 5223 ден with VAT in the app; the paper
+  invoice says 5477 — the owner left some lines out on purpose, that's fine.
+
+Open for next time:
+- **Delivery form:** changing ДДВ % doesn't recalculate the prices (the
+  scan review does). Offered to the owner, not asked for yet.
+- **Домат-сув:** stock −4.05, never counted; remind at its first delivery
+  (note on the product too).
+- **Šifrarnik:** parser still skips lines without a unit; a re-import may
+  move the 38 dishes back to "Пијалок". Need a sample file.
+- **Not clicked through by Claude:** everything today needs login — the owner
+  checks on the live site (Ctrl+Shift+R after a deploy).
+- Scan paste-JSON test from 2026-10-07 still unconfirmed.
+
 ### 2026-10-18 — ДДВ switch (Без ДДВ / Со ДДВ)
 
 - **Done:** a switch at the top of the sidebar (and in the mobile header)
