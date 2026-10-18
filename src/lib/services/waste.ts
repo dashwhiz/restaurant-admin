@@ -4,7 +4,7 @@ import type { WasteLog } from '@/lib/types';
 import { applyStockDelta } from './stock';
 
 export interface WasteRow extends WasteLog {
-  product?: { name: string; unit: string; cost_per_unit: number } | null;
+  product?: { name: string; unit: string; cost_per_unit: number; ddv_rate: number | null; department: string } | null;
 }
 
 export interface WasteInput {
@@ -16,7 +16,7 @@ export interface WasteInput {
 export async function listWaste(): Promise<WasteRow[]> {
   const { data, error } = await getSupabase()
     .from('waste_log')
-    .select('*, product:products(name,unit,cost_per_unit)')
+    .select('*, product:products(name,unit,cost_per_unit,ddv_rate,department)')
     .order('created_at', { ascending: false })
     .limit(300);
   if (error) throw error;

@@ -16,10 +16,13 @@ import {
   type MenuDraft,
 } from '@/lib/services/events';
 import type { EventRow, Recipe } from '@/lib/types';
+import { eventVatRate } from '@/lib/vat';
+import { useVat } from '@/components/layout/Vat';
 import { EventDialog } from './components/EventDialog';
 
 export default function EventsPage() {
   const toast = useToast();
+  const vat = useVat();
   const [events, setEvents] = useState<EventRow[]>([]);
   const [menus, setMenus] = useState<MenuItemRow[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -128,7 +131,9 @@ export default function EventsPage() {
                 </div>
                 {ev.price_per_person > 0 && (
                   <p className="text-sm text-muted">
-                    {fmtMKD(ev.price_per_person)} × {ev.guest_count} = <strong className="text-foreground">{fmtMKD(ev.price_per_person * ev.guest_count)}</strong>
+                    {fmtMKD(vat.price(ev.price_per_person, eventVatRate(ev.type)))} × {ev.guest_count} ={' '}
+                    <strong className="text-foreground">{fmtMKD(vat.price(ev.price_per_person * ev.guest_count, eventVatRate(ev.type)))}</strong>{' '}
+                    {vat.label} ({eventVatRate(ev.type)}%)
                   </p>
                 )}
                 {menu.length > 0 && (

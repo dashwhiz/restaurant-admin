@@ -23,6 +23,8 @@ export interface Product {
   serving_unit: string | null;
   /** Free-text reminder for the owner, shown under the name. */
   notes: string | null;
+  /** Purchase VAT %, from the last delivery. null → guessed, see lib/vat.ts. */
+  ddv_rate: number | null;
   created_at: string;
 }
 
@@ -30,7 +32,10 @@ export interface Recipe {
   id: string;
   name: string;
   category: string;
+  /** WITH VAT — what the till charges. */
   selling_price: number;
+  /** Sales VAT % (10 food / non-alcoholic, 18 alcohol). null → see lib/vat.ts. */
+  ddv_rate: number | null;
   price_updated_at: string | null;
   created_at: string;
 }

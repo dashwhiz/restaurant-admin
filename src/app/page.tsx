@@ -10,9 +10,12 @@ import { listProducts } from '@/lib/services/products';
 import { listRecipes } from '@/lib/services/recipes';
 import { recentActivity, timeAgo, type ActivityEntry } from '@/lib/services/activity';
 import type { Product } from '@/lib/types';
+import { productVatRate } from '@/lib/vat';
+import { useVat } from '@/components/layout/Vat';
 
 export default function DashboardPage() {
   const toast = useToast();
+  const vat = useVat();
   const [products, setProducts] = useState<Product[]>([]);
   const [recipeCount, setRecipeCount] = useState(0);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
@@ -35,7 +38,7 @@ export default function DashboardPage() {
   }, []);
 
   const low = products.filter((p) => p.min_stock > 0 && p.current_stock <= p.min_stock);
-  const value = products.reduce((s, p) => s + p.current_stock * p.cost_per_unit, 0);
+  const value = products.reduce((s, p) => s + vat.cost(p.current_stock * p.cost_per_unit, productVatRate(p)), 0);
 
   return (
     <>
@@ -49,7 +52,7 @@ export default function DashboardPage() {
             <Stat label="Производи" value={String(products.length)} />
             <Stat label="Рецепти" value={String(recipeCount)} />
             <Stat label="Мала залиха" value={String(low.length)} tone={low.length ? 'warning' : undefined} />
-            <Stat label="Вредност на залиха" value={fmtMKD(value)} />
+            <Stat label={`Вредност на залиха ${vat.label}`} value={fmtMKD(value)} />
           </div>
 
           <div className="card mt-5">

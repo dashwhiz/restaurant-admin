@@ -6,6 +6,7 @@ import { useToast } from '@/components/ui/Toast';
 import { createDelivery, updateDelivery, type DeliveryRow } from '@/lib/services/deliveries';
 import type { Product } from '@/lib/types';
 import { num } from '@/lib/format';
+import { productVatRate } from '@/lib/vat';
 
 export function DeliveryDialog({
   open,
@@ -75,7 +76,11 @@ export function DeliveryDialog({
             className="input"
             value={form.product_id}
             disabled={!!delivery}
-            onChange={(e) => set({ product_id: e.target.value })}
+            // A new delivery starts at the product's known (or guessed) rate.
+            onChange={(e) => {
+              const p = products.find((x) => x.id === e.target.value);
+              set(!delivery && p ? { product_id: e.target.value, ddv_rate: String(productVatRate(p)) } : { product_id: e.target.value });
+            }}
           >
             <option value="">Избери…</option>
             {products.map((p) => (

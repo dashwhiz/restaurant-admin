@@ -15,10 +15,13 @@ import {
   type IngredientDraft,
 } from '@/lib/services/recipes';
 import type { Product, Recipe } from '@/lib/types';
+import { recipeVatRate } from '@/lib/vat';
+import { useVat } from '@/components/layout/Vat';
 import { RecipeDialog } from './components/RecipeDialog';
 
 export default function RecipesPage() {
   const toast = useToast();
+  const vat = useVat();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
@@ -116,7 +119,11 @@ export default function RecipesPage() {
                     <div className="mb-2 flex items-start justify-between gap-2">
                       <div>
                         <h3 className="font-bold">{r.name}</h3>
-                        {r.selling_price > 0 && <Badge tone="yellow">{fmtMKD(r.selling_price)}</Badge>}
+                        {r.selling_price > 0 && (
+                          <Badge tone="yellow">
+                            {fmtMKD(vat.price(r.selling_price, recipeVatRate(r)))} {vat.label}
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex gap-1">
                         <button className="btn-ghost px-2 py-1" onClick={() => setDialog({ open: true, recipe: r })} aria-label="Измени">

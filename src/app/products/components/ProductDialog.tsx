@@ -6,6 +6,7 @@ import { useToast } from '@/components/ui/Toast';
 import { createProduct, updateProduct } from '@/lib/services/products';
 import type { Product } from '@/lib/types';
 import { num } from '@/lib/format';
+import { VAT_RATES, productVatRate } from '@/lib/vat';
 
 const UNITS = ['piece', 'kg', 'g', 'L', 'ml', 'portion', 'bottle', 'pack', 'box'];
 const DEPARTMENTS = ['Кујна', 'Бар'];
@@ -48,6 +49,13 @@ export function ProductDialog({
         min_stock: num(form.min_stock),
         cost_per_unit: num(form.cost_per_unit),
         notes: form.notes.trim() || null,
+        // An untouched guess is saved as null so it keeps following the
+        // department; a rate the owner picked, or one from a delivery, is kept.
+        ddv_rate:
+          product?.ddv_rate == null &&
+          num(form.ddv_rate) === productVatRate({ department: form.department })
+            ? null
+            : num(form.ddv_rate),
       };
       // Кало (yield/defrost/trim) and serving size aren't editable from this
       // form — only set sensible defaults on a brand new product, and leave an
@@ -97,7 +105,18 @@ export function ProductDialog({
         </div>
         <div>
           <label className="label">Оддел</label>
-          <select className="input" value={form.department} onChange={(e) => set({ department: e.target.value })}>
+          <select
+            className="input"
+            value={form.department}
+            // Until a delivery sets the real rate, it follows the department.
+            onChange={(e) =>
+              set(
+                product?.ddv_rate == null
+                  ? { department: e.target.value, ddv_rate: String(productVatRate({ department: e.target.value })) }
+                  : { department: e.target.value },
+              )
+            }
+          >
             {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
           </select>
         </div>
@@ -108,7 +127,7 @@ export function ProductDialog({
           </select>
         </div>
         <div>
-          <label className="label">Цена по единица (ден)</label>
+          <label className="label">Цена по единица без ДДВ (ден)</label>
           <input className="input" type="number" step="0.01" value={form.cost_per_unit} onChange={(e) => set({ cost_per_unit: e.target.value })} />
         </div>
         <div>
@@ -118,6 +137,13 @@ export function ProductDialog({
         <div>
           <label className="label">Мин. залиха</label>
           <input className="input" type="number" step="0.001" value={form.min_stock} onChange={(e) => set({ min_stock: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">ДДВ при набавка</label>
+          <select className="input" value={form.ddv_rate} onChange={(e) => set({ ddv_rate: e.target.value })}>
+            {VAT_RATES.map((r) => <option key={r} value={String(r)}>{r}%</option>)}
+          </select>
+          <p className="mt-1 text-xs text-muted">Се ажурира сам со секоја набавка.</p>
         </div>
         <div className="col-span-2">
           <label className="label">Забелешка</label>
@@ -144,5 +170,6 @@ function blank(p: Product | null) {
     current_stock: String(p?.current_stock ?? ''),
     min_stock: String(p?.min_stock ?? ''),
     notes: p?.notes ?? '',
+    ddv_rate: String(productVatRate({ ddv_rate: p?.ddv_rate, department: p?.department ?? 'Кујна' })),
   };
 }

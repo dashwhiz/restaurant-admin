@@ -10,6 +10,8 @@ import { listProducts, updateProduct } from '@/lib/services/products';
 import { suggestKalo } from '@/lib/kaloDefaults';
 import { ProductPicker } from './components/ProductPicker';
 import type { Product } from '@/lib/types';
+import { productVatRate } from '@/lib/vat';
+import { useVat } from '@/components/layout/Vat';
 
 // Usable yield after defrosting and trimming losses.
 const yieldPct = (defrost: number, trim: number) =>
@@ -22,6 +24,7 @@ interface Edit {
 
 export default function KaloPage() {
   const toast = useToast();
+  const vat = useVat();
   const [products, setProducts] = useState<Product[]>([]);
   const [edits, setEdits] = useState<Record<string, Edit>>({});
   const [suggested, setSuggested] = useState<Record<string, boolean>>({});
@@ -83,7 +86,7 @@ export default function KaloPage() {
     const trim = product.kalo_trim ?? 0;
     const totalYield = (1 - defrost / 100) * (1 - trim / 100);
     const raw = totalYield > 0 ? qty / totalYield : qty;
-    const cost = product.cost_per_unit ?? 0;
+    const cost = vat.cost(product.cost_per_unit ?? 0, productVatRate(product));
     return {
       product,
       qty,
@@ -94,7 +97,7 @@ export default function KaloPage() {
       costPortion: qty * cost,
       costRaw: raw * cost,
     };
-  }, [products, calcId, calcQty]);
+  }, [products, calcId, calcQty, vat]);
 
   const changed = products.filter((p) => {
     const e = edits[p.id];
@@ -178,7 +181,7 @@ export default function KaloPage() {
               <dd className={calc.lossPct > 0 ? 'text-danger' : ''}>{calc.lossPct.toFixed(1)}%</dd>
             </div>
             <div className="flex justify-between gap-2">
-              <dt className="text-muted">Вистински кост</dt>
+              <dt className="text-muted">Вистински кост {vat.label}</dt>
               <dd className="font-semibold">
                 {fmtMKD(calc.costRaw)}
                 {calc.costRaw > calc.costPortion && (

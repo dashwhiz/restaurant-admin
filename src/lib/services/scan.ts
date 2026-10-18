@@ -177,6 +177,8 @@ export interface ImportLine {
   unit: string;
   cost_per_unit: number; // без ДДВ — this is the stored product cost
   ddv_rate: number;
+  /** false = the invoice showed no rate; then the product's rate is left alone. */
+  ddv_read: boolean;
   price_with_ddv: number;
   target: string;
 }
@@ -218,15 +220,24 @@ export async function importScannedInvoice(
           .insert({
             name: line.name, category: 'Суровина', unit: line.unit, department: 'Кујна',
             current_stock: 0, min_stock: 0, cost_per_unit: line.cost_per_unit,
+            ddv_rate: line.ddv_read ? line.ddv_rate : null,
           })
           .select('id')
           .single();
         if (error) throw error;
         productId = data.id as string;
         created++;
-      } else if (line.cost_per_unit > 0) {
-        const { error } = await sb.from('products').update({ cost_per_unit: line.cost_per_unit }).eq('id', productId);
-        if (error) throw error;
+      } else {
+        // The latest invoice sets the product's cost, and its VAT rate when
+        // the invoice actually showed one.
+        const patch = {
+          ...(line.cost_per_unit > 0 ? { cost_per_unit: line.cost_per_unit } : {}),
+          ...(line.ddv_read && line.ddv_rate > 0 ? { ddv_rate: line.ddv_rate } : {}),
+        };
+        if (Object.keys(patch).length > 0) {
+          const { error } = await sb.from('products').update(patch).eq('id', productId);
+          if (error) throw error;
+        }
       }
 
       const { error: pErr } = await sb.from('purchases').insert({

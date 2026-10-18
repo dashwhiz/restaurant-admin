@@ -7,10 +7,12 @@ export interface RecipeInput {
   name: string;
   category: string;
   selling_price: number;
+  /** Sales VAT %. Left out → the DB keeps null and lib/vat.ts guesses. */
+  ddv_rate?: number | null;
 }
 
 export interface IngredientRow extends RecipeIngredient {
-  product?: { name: string; unit: string; cost_per_unit: number } | null;
+  product?: { name: string; unit: string; cost_per_unit: number; ddv_rate: number | null; department: string } | null;
 }
 
 /** One ingredient as edited in the dialog (before it has a DB id). */
@@ -39,7 +41,7 @@ export async function recipesWithIngredients(): Promise<Set<string>> {
 export async function listAllIngredients(): Promise<IngredientRow[]> {
   const { data, error } = await getSupabase()
     .from('recipe_ingredients')
-    .select('*, product:products(name,unit,cost_per_unit)');
+    .select('*, product:products(name,unit,cost_per_unit,ddv_rate,department)');
   if (error) throw error;
   return (data ?? []) as IngredientRow[];
 }
@@ -61,6 +63,12 @@ export async function updateRecipePrice(id: string, price: number): Promise<void
     .from('recipes')
     .update({ selling_price: price, price_updated_at: new Date().toISOString() })
     .eq('id', id);
+  if (error) throw error;
+}
+
+/** Update just the sales VAT rate (used by the bulk Prices page). */
+export async function updateRecipeVat(id: string, rate: number): Promise<void> {
+  const { error } = await getSupabase().from('recipes').update({ ddv_rate: rate }).eq('id', id);
   if (error) throw error;
 }
 

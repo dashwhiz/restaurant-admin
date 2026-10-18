@@ -5,7 +5,8 @@ import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { fmtMKD, fmtTime } from '@/lib/format';
-import { loadAnalytics, type AnalyticsData } from '@/lib/services/analytics';
+import { loadAnalytics, type AnalyticsViews } from '@/lib/services/analytics';
+import { useVat } from '@/components/layout/Vat';
 import { TrendChart, RankChart } from './components/Charts';
 
 const RANGES = [
@@ -32,7 +33,7 @@ const ABC_TEXT = {
 // on every visit is worth avoiding. Cached per range; the refresh button forces
 // a reload, and the TTL stops a tab left open overnight showing yesterday.
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const cache = new Map<number, { data: AnalyticsData; at: number }>();
+const cache = new Map<number, { data: AnalyticsViews; at: number }>();
 
 function pct(n: number | null): string {
   return n === null ? '—' : `${n.toFixed(1)}%`;
@@ -112,8 +113,9 @@ function ValueTable({
 
 export default function AnalyticsPage() {
   const toast = useToast();
+  const vat = useVat();
   const [days, setDays] = useState(30);
-  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [views, setData] = useState<AnalyticsViews | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchedAt, setFetchedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -158,6 +160,8 @@ export default function AnalyticsPage() {
     load(days);
   }, [days, load]);
 
+  // Both views arrive in one load; the switch just picks one, no refetch.
+  const data = views ? (vat.withVat ? views.gross : views.net) : null;
   const k = data?.kpis;
 
   return (
@@ -212,7 +216,7 @@ export default function AnalyticsPage() {
         <div className={`grid gap-4 ${loading ? 'opacity-60' : ''}`}>
           <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
             <Kpi
-              label='Приход'
+              label={`Приход ${vat.label}`}
               value={fmtMKD(k.revenue)}
               sub={
                 k.revenueFromPos > 0
@@ -221,7 +225,7 @@ export default function AnalyticsPage() {
               }
             />
             <Kpi
-              label='Кост на продадено'
+              label={`Кост на продадено ${vat.label}`}
               value={fmtMKD(k.cogs)}
               sub={`Food cost ${pct(k.foodCostPct)}`}
               tone={
@@ -231,7 +235,7 @@ export default function AnalyticsPage() {
               }
             />
             <Kpi
-              label='Отпад'
+              label={`Отпад ${vat.label}`}
               value={fmtMKD(k.wasteCost)}
               sub={`${pct(k.wastePctOfRevenue)} од приход · ${k.wasteCount} записи`}
               tone={
@@ -242,12 +246,12 @@ export default function AnalyticsPage() {
               }
             />
             <Kpi
-              label='Бруто маржа'
+              label='Бруто маржа (без ДДВ)'
               value={pct(k.marginPct)}
               sub={
                 k.uncostedUnits > 0
                   ? `⚠ ${k.uncostedUnits} порции без норматив — маржата е превисока`
-                  : `${fmtMKD(k.grossProfit)} профит`
+                  : `${fmtMKD(k.grossProfit)} профит без ДДВ`
               }
               tone={
                 k.uncostedUnits > 0
@@ -262,13 +266,13 @@ export default function AnalyticsPage() {
           <div className='grid gap-4 lg:grid-cols-2'>
             <div className='card'>
               <h2 className='mb-3 text-sm font-bold uppercase tracking-wide text-muted'>
-                Приход по месец
+                Приход по месец {vat.label}
               </h2>
               <TrendChart data={data.trend} />
             </div>
             <div className='card'>
               <h2 className='mb-3 text-sm font-bold uppercase tracking-wide text-muted'>
-                Топ 5 по приход
+                Топ 5 по приход {vat.label}
               </h2>
               {data.top.length === 0 ? (
                 <p className='text-sm text-muted'>Нема продажби во периодот.</p>
@@ -382,8 +386,8 @@ export default function AnalyticsPage() {
                   <thead>
                     <tr className='border-b border-border text-left text-xs text-muted'>
                       <th className='py-1.5 font-semibold'>Рецепт</th>
-                      <th className='py-1.5 text-right font-semibold'>Кост</th>
-                      <th className='py-1.5 text-right font-semibold'>Цена</th>
+                      <th className='py-1.5 text-right font-semibold'>Кост {vat.label}</th>
+                      <th className='py-1.5 text-right font-semibold'>Цена {vat.label}</th>
                       <th className='py-1.5 text-right font-semibold'>
                         Food cost
                       </th>
@@ -438,7 +442,7 @@ export default function AnalyticsPage() {
               )}
             </Section>
 
-            <Section title='Залиха — вредност по категорија'>
+            <Section title={`Залиха — вредност по категорија ${vat.label}`}>
               <ValueTable
                 rows={data.inventoryByCategory}
                 empty='Нема залиха.'
@@ -446,14 +450,14 @@ export default function AnalyticsPage() {
             </Section>
           </div>
 
-          <Section title='Отпад — по производ'>
+          <Section title={`Отпад — по производ ${vat.label}`}>
             <ValueTable
               rows={data.wasteByProduct}
               empty='Нема отпад во периодот.'
             />
           </Section>
 
-          <Section title='Испораки — по добавувач'>
+          <Section title={`Испораки — по добавувач ${vat.label}`}>
             <ValueTable
               rows={data.deliveriesBySupplier}
               empty='Нема испораки во периодот.'

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NAV_GROUPS } from './nav';
 import { Login } from './Login';
+import { VatProvider, VatToggle, useVat } from './Vat';
 import { ToastProvider } from '@/components/ui/Toast';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { requireAuth, getSession, onAuthChange, signOut } from '@/lib/services/auth';
@@ -69,6 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const sidebarInner = (
     <>
       <Brand className="mb-4 px-2 pt-2 text-lg" />
+      <VatToggle className="mb-4" />
       {navLinks}
       {requireAuth && (
         <button
@@ -83,6 +85,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <ToastProvider>
+      <VatProvider>
       <div className="flex min-h-dvh">
         <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface p-3 md:flex">
           {sidebarInner}
@@ -106,11 +109,26 @@ export function AppShell({ children }: { children: ReactNode }) {
               <IconMenu className="h-6 w-6" />
             </button>
             <Brand />
+            <VatToggle className="ml-auto w-36" />
           </header>
+          <VatBanner />
           <main className="mx-auto w-full max-w-6xl flex-1 p-4 sm:p-6">{children}</main>
         </div>
       </div>
+      </VatProvider>
     </ToastProvider>
+  );
+}
+
+/** Always-visible reminder while prices are shown with VAT, so a number is
+ *  never read in the wrong mode. Profit and margin don't change — say so. */
+function VatBanner() {
+  const { withVat } = useVat();
+  if (!withVat) return null;
+  return (
+    <div className="border-b border-warning/40 bg-warning/10 px-4 py-1.5 text-center text-xs font-medium sm:px-6">
+      Цените и трошоците се прикажани <strong>СО ДДВ</strong>. Заработката и маржата секогаш се без ДДВ.
+    </div>
   );
 }
 

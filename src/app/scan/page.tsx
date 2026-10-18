@@ -23,6 +23,7 @@ import {
   type ImportLine,
 } from '@/lib/services/scan';
 import { bestMatch } from '@/lib/pos/match';
+import { productVatRate } from '@/lib/vat';
 import { ProductPicker } from './components/ProductPicker';
 import type { Product } from '@/lib/types';
 
@@ -36,6 +37,8 @@ interface Row {
   unit: string;
   priceNoDDV: string;
   ddvRate: string;
+  /** Read off the invoice, or set by hand — only then does it update the product. */
+  ddvRead: boolean;
   priceDDV: string;
   target: string; // product id | NEW_PRODUCT | SKIP
   matchName: string | null;
@@ -161,7 +164,9 @@ export default function ScanPage() {
           // clearly, so trust those over Claude's own со-ДДВ reading. Fiscal
           // receipts only print со-ДДВ (no base), so fall back to the read
           // value when there's no base to calculate from.
-          const rate = it.ddv_rate != null ? it.ddv_rate : 18;
+          // No rate on the document (fiscal receipts): use the product's own.
+          const target = known ?? (m ? m.item : undefined);
+          const rate = it.ddv_rate != null ? it.ddv_rate : target ? productVatRate(target) : 18;
           const base = it.price_without_ddv;
           const priceDDV =
             base != null && base > 0
@@ -174,7 +179,8 @@ export default function ScanPage() {
             quantity: it.quantity != null ? String(it.quantity) : '',
             unit: it.unit && UNITS.includes(it.unit) ? it.unit : 'piece',
             priceNoDDV: it.price_without_ddv != null ? String(it.price_without_ddv) : '',
-            ddvRate: it.ddv_rate != null ? String(it.ddv_rate) : '18',
+            ddvRate: String(rate),
+            ddvRead: it.ddv_rate != null,
             priceDDV,
             target: known ? known.id : m ? m.item.id : NEW_PRODUCT,
             matchName: known ? known.name : m ? m.item.name : null,
@@ -195,6 +201,7 @@ export default function ScanPage() {
       rs.map((r, idx) => {
         if (idx !== i) return r;
         const merged = { ...r, ...next };
+        if ('ddvRate' in next) merged.ddvRead = true;
         // Keep the two prices in sync. Editing base or rate fills со-ДДВ;
         // editing со-ДДВ back-fills the base (needed for fiscal receipts, which
         // only print the with-VAT price).
@@ -234,6 +241,7 @@ export default function ScanPage() {
           unit: r.unit,
           cost_per_unit: base,
           ddv_rate: rate,
+          ddv_read: r.ddvRead,
           price_with_ddv: withDDV,
           target: r.target,
         };

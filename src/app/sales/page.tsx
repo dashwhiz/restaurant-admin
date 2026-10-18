@@ -9,6 +9,8 @@ import { exportCsv, downloadCsv, toCsv } from '@/lib/csv';
 import { listRecipes } from '@/lib/services/recipes';
 import { listSales, deleteSale, type SaleRow } from '@/lib/services/sales';
 import type { Recipe } from '@/lib/types';
+import { recipeVatRate } from '@/lib/vat';
+import { useVat } from '@/components/layout/Vat';
 import { SaleDialog } from './components/SaleDialog';
 
 interface DayGroup {
@@ -25,6 +27,7 @@ const KITCHEN_TONE = { border: 'border-amber-500', text: 'text-amber-600 dark:te
 
 export default function SalesPage() {
   const toast = useToast();
+  const vat = useVat();
   const [sales, setSales] = useState<SaleRow[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,11 +83,11 @@ export default function SalesPage() {
       if (!byDay.has(day)) byDay.set(day, { day, bar: [], kitchen: [], revenue: 0, count: 0 });
       const g = byDay.get(day)!;
       (departmentOf(s.recipe?.category) === 'Бар' ? g.bar : g.kitchen).push(s);
-      g.revenue += (s.quantity || 0) * (s.recipe?.selling_price ?? 0);
+      g.revenue += s.recipe ? vat.price((s.quantity || 0) * (s.recipe.selling_price ?? 0), recipeVatRate(s.recipe)) : 0;
       g.count += 1;
     }
     return [...byDay.values()];
-  }, [sales]);
+  }, [sales, vat]);
 
   function toggle(day: string) {
     setOpenDays((prev) => {

@@ -10,10 +10,13 @@ import { exportCsv } from '@/lib/csv';
 import { listProducts } from '@/lib/services/products';
 import { listWaste, deleteWaste, type WasteRow } from '@/lib/services/waste';
 import type { Product } from '@/lib/types';
+import { productVatRate } from '@/lib/vat';
+import { useVat } from '@/components/layout/Vat';
 import { WasteDialog } from './components/WasteDialog';
 
 export default function WastePage() {
   const toast = useToast();
+  const vat = useVat();
   const [rows, setRows] = useState<WasteRow[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +58,7 @@ export default function WastePage() {
         производ: r.product?.name ?? '',
         количина: r.quantity ?? 0,
         причина: r.reason ?? '',
-        вредност: (r.quantity || 0) * (r.product?.cost_per_unit ?? 0),
+        вредност_без_ддв: (r.quantity || 0) * (r.product?.cost_per_unit ?? 0),
       })),
     );
     toast(n > 0 ? `Преземени ${n} записи` : 'Нема што да се преземе', n > 0 ? 'success' : 'error');
@@ -91,13 +94,13 @@ export default function WastePage() {
                 <th className="p-3">Производ</th>
                 <th className="p-3 text-right">Количина</th>
                 <th className="p-3">Причина</th>
-                <th className="p-3 text-right">Вредност</th>
+                <th className="p-3 text-right">Вредност {vat.label}</th>
                 <th className="p-3"></th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => {
-                const val = r.quantity * (r.product?.cost_per_unit ?? 0);
+                const val = r.product ? vat.cost(r.quantity * (r.product.cost_per_unit ?? 0), productVatRate(r.product)) : 0;
                 return (
                   <tr key={r.id} className="border-b border-border/60 last:border-0">
                     <td className="p-3 whitespace-nowrap text-muted">{fmtDateTime(r.created_at)}</td>

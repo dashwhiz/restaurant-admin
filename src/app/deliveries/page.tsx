@@ -11,6 +11,7 @@ import { IconScan } from '@/components/ui/Icons';
 import { listProducts } from '@/lib/services/products';
 import { listDeliveries, deleteDelivery, type DeliveryRow } from '@/lib/services/deliveries';
 import type { Product } from '@/lib/types';
+import { useVat } from '@/components/layout/Vat';
 import { DeliveryDialog } from './components/DeliveryDialog';
 
 const NO_SUPPLIER = '—';
@@ -24,6 +25,7 @@ interface Group {
 
 export default function DeliveriesPage() {
   const toast = useToast();
+  const vat = useVat();
   const [rows, setRows] = useState<DeliveryRow[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,14 +76,14 @@ export default function DeliveriesPage() {
       if (!byKey.has(key)) byKey.set(key, { key, label, rows: [], total: 0 });
       const g = byKey.get(key)!;
       g.rows.push(r);
-      g.total += (r.quantity || 0) * (r.cost_per_unit ?? 0);
+      g.total += vat.cost((r.quantity || 0) * (r.cost_per_unit ?? 0), r.ddv_rate ?? 0);
     }
     const list = [...byKey.values()];
     if (groupBy === 'supplier') {
       list.sort((a, b) => (a.key === NO_SUPPLIER ? 1 : b.key === NO_SUPPLIER ? -1 : a.label.localeCompare(b.label, 'mk')));
     }
     return list; // date groups stay in the newest-first order rows already arrive in
-  }, [filtered, groupBy]);
+  }, [filtered, groupBy, vat]);
 
   // Switching the tab needs a sensible default open state: the newest day for
   // "by date", everything open for "by supplier" (there are far fewer suppliers).
@@ -117,7 +119,7 @@ export default function DeliveriesPage() {
       цена_без_ддв: r.cost_per_unit ?? 0,
       ддв: r.ddv_rate ?? 0,
       цена_со_ддв: r.price_with_ddv ?? 0,
-      вкупно: (r.quantity || 0) * (r.cost_per_unit ?? 0),
+      вкупно_без_ддв: (r.quantity || 0) * (r.cost_per_unit ?? 0),
       добавувач: r.supplier ?? '',
       белешка: r.notes ?? '',
     }));
@@ -239,7 +241,7 @@ export default function DeliveriesPage() {
                           <th className="p-3">{groupBy === 'supplier' ? 'Датум' : 'Час'}</th>
                           <th className="p-3">Производ</th>
                           <th className="p-3 text-right">Количина</th>
-                          <th className="p-3 text-right">Цена</th>
+                          <th className="p-3 text-right">Цена {vat.label}</th>
                           {groupBy === 'date' && <th className="p-3">Добавувач</th>}
                           <th className="p-3"></th>
                         </tr>
@@ -252,7 +254,7 @@ export default function DeliveriesPage() {
                             </td>
                             <td className="p-3 font-semibold">{r.product?.name ?? '?'}</td>
                             <td className="p-3 text-right">{r.quantity} {r.product?.unit ?? ''}</td>
-                            <td className="p-3 text-right">{r.cost_per_unit > 0 ? fmtMKD(r.cost_per_unit) : '—'}</td>
+                            <td className="p-3 text-right">{r.cost_per_unit > 0 ? fmtMKD(vat.cost(r.cost_per_unit, r.ddv_rate ?? 0)) : '—'}</td>
                             {groupBy === 'date' && <td className="p-3">{r.supplier ?? '—'}</td>}
                             <td className="p-3">
                               <div className="flex justify-end gap-1">

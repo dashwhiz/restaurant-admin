@@ -9,11 +9,14 @@ import { fmtMKD, departmentOf } from '@/lib/format';
 import { exportCsv } from '@/lib/csv';
 import { listProducts, deleteProduct } from '@/lib/services/products';
 import type { Product } from '@/lib/types';
+import { productVatRate } from '@/lib/vat';
+import { useVat } from '@/components/layout/Vat';
 import { ProductDialog } from './components/ProductDialog';
 import { ProductHistory } from './components/ProductHistory';
 
 export default function ProductsPage() {
   const toast = useToast();
+  const vat = useVat();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -85,7 +88,7 @@ export default function ProductsPage() {
         единица: p.unit,
         залиха: p.current_stock,
         минимум: p.min_stock,
-        цена_по_единица: p.cost_per_unit,
+        цена_без_ддв: p.cost_per_unit,
       })),
     );
     toast(n > 0 ? `Преземени ${n} производи` : 'Нема што да се преземе', n > 0 ? 'success' : 'error');
@@ -166,7 +169,7 @@ export default function ProductsPage() {
                 <th className="p-3">Назив</th>
                 <th className="p-3">Категорија</th>
                 <th className="p-3 text-right">Залиха</th>
-                <th className="p-3 text-right">Цена</th>
+                <th className="p-3 text-right">Цена {vat.label}</th>
                 <th className="p-3">Статус</th>
                 <th className="p-3"></th>
               </tr>
@@ -189,7 +192,12 @@ export default function ProductsPage() {
                     <td className="p-3 text-right font-medium">
                       {p.current_stock} {p.unit}
                     </td>
-                    <td className="p-3 text-right">{p.cost_per_unit > 0 ? fmtMKD(p.cost_per_unit) : '—'}</td>
+                    <td className="p-3 text-right">
+                      {p.cost_per_unit > 0 ? fmtMKD(vat.cost(p.cost_per_unit, productVatRate(p))) : '—'}
+                      {p.cost_per_unit > 0 && vat.withVat && (
+                        <span className="block text-xs text-muted">{productVatRate(p)}%</span>
+                      )}
+                    </td>
                     <td className="p-3">
                       {out ? <Badge tone="red">Нема</Badge> : low ? <Badge tone="yellow">Малку</Badge> : <Badge tone="green">Во ред</Badge>}
                     </td>

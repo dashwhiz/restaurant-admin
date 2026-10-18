@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { IconPlus, IconTrash } from '@/components/ui/Icons';
 import { num } from '@/lib/format';
+import { VAT_RATES, recipeVatRate } from '@/lib/vat';
 import { ProductPicker } from './ProductPicker';
 import {
   createRecipe,
@@ -68,6 +69,7 @@ export function RecipeDialog({
         name: form.name.trim(),
         category: form.category.trim() || 'Храна',
         selling_price: num(form.selling_price),
+        ddv_rate: num(form.ddv_rate),
       };
       const id = recipe ? (await updateRecipe(recipe.id, input), recipe.id) : (await createRecipe(input)).id;
       await setRecipeIngredients(id, ings.map((i): IngredientDraft => ({ product_id: i.product_id, quantity: num(i.quantity) })));
@@ -100,13 +102,27 @@ export function RecipeDialog({
         </div>
         <div>
           <label className="label">Категорија</label>
-          <select className="input" value={form.category} onChange={(e) => set({ category: e.target.value })}>
+          <select
+            className="input"
+            value={form.category}
+            // A new recipe follows its category's usual rate; an existing one
+            // keeps whatever rate was chosen for it.
+            onChange={(e) =>
+              set(recipe ? { category: e.target.value } : { category: e.target.value, ddv_rate: String(recipeVatRate({ category: e.target.value })) })
+            }
+          >
             {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
           </select>
         </div>
         <div>
-          <label className="label">Продажна цена (ден)</label>
+          <label className="label">Продажна цена со ДДВ (ден)</label>
           <input className="input" type="number" step="0.01" value={form.selling_price} onChange={(e) => set({ selling_price: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">ДДВ на продажба</label>
+          <select className="input" value={form.ddv_rate} onChange={(e) => set({ ddv_rate: e.target.value })}>
+            {VAT_RATES.map((r) => <option key={r} value={String(r)}>{r}%</option>)}
+          </select>
         </div>
       </div>
 
@@ -160,5 +176,6 @@ function blank(r: Recipe | null) {
     name: r?.name ?? '',
     category: r?.category ?? 'Храна',
     selling_price: String(r?.selling_price ?? ''),
+    ddv_rate: String(recipeVatRate({ ddv_rate: r?.ddv_rate, category: r?.category ?? 'Храна' })),
   };
 }

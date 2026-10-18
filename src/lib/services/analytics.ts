@@ -6,7 +6,11 @@
 //     month is not a drop in margin.
 //  2. Every query pages (see paged.ts). The old app capped at 1000 rows and went
 //     silently wrong on busy periods.
+//  3. ДДВ: one load yields two views, without and with VAT (lib/vat.ts). Money
+//     amounts differ between them; profit, margin, food cost % and waste % are
+//     always worked out without VAT and are the same in both.
 import { fetchAllRows } from './paged';
+import { productVatRate, recipeVatRate, removeVat, shownCost, shownPrice } from '@/lib/vat';
 import type {
   Product,
   Purchase,
@@ -25,7 +29,9 @@ export interface Kpis {
   revenueFromPrices: number;
   cogs: number;
   wasteCost: number;
+  /** Always without VAT — VAT is not earnings. */
   grossProfit: number;
+  /** % figures are always without VAT on both sides. */
   marginPct: number | null;
   foodCostPct: number | null;
   wastePctOfRevenue: number | null;
@@ -46,7 +52,10 @@ export interface RecipeStat {
   id: string;
   name: string;
   qty: number;
+  /** As shown (follows the VAT switch). */
   revenue: number;
+  /** Without VAT — what ranking and ABC classes use, so they never move. */
+  revenueNet: number;
 }
 
 export interface AbcRow extends RecipeStat {
@@ -110,6 +119,12 @@ function localMonthKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+/** Both views of the analytics, from one load. */
+export interface AnalyticsViews {
+  net: AnalyticsData;
+  gross: AnalyticsData;
+}
+
 /** Cost of one portion of a recipe, from its ingredients' current unit costs. */
 function buildRecipeCosts(
   ingredients: RecipeIngredient[],
@@ -123,7 +138,18 @@ function buildRecipeCosts(
   return cost;
 }
 
-export async function loadAnalytics(days: number): Promise<AnalyticsData> {
+interface Rows {
+  products: Product[];
+  recipes: Recipe[];
+  ingredients: RecipeIngredient[];
+  sales: SaleRow[];
+  purchases: Purchase[];
+  waste: WasteRow[];
+  posImports: PosImport[];
+  posItems: Pick<PosSalesItem, 'import_id' | 'amount' | 'recipe_id'>[];
+}
+
+export async function loadAnalytics(days: number): Promise<AnalyticsViews> {
   const from = isoDaysAgo(days);
   // Trend always covers 6 months, independent of the selected period.
   const trendFrom = new Date();
@@ -152,15 +178,35 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
   const posItems =
     posImports.length === 0
       ? []
-      : await fetchAllRows<Pick<PosSalesItem, 'import_id' | 'amount'>>('pos_sales_items', {
-          select: 'id,import_id,amount',
+      : await fetchAllRows<Pick<PosSalesItem, 'import_id' | 'amount' | 'recipe_id'>>('pos_sales_items', {
+          select: 'id,import_id,amount,recipe_id',
           in: { column: 'import_id', values: posImports.map((i) => i.id) },
         });
 
+  const rows: Rows = { products, recipes, ingredients, sales, purchases, waste, posImports, posItems };
+  return { net: compute(rows, days, from, false), gross: compute(rows, days, from, true) };
+}
+
+function compute(rows: Rows, days: number, from: string, withVat: boolean): AnalyticsData {
+  const { products, recipes, ingredients, sales, purchases, waste, posImports, posItems } = rows;
+  // Shown money: costs are stored without VAT, till amounts and prices with it.
+  const showCost = (net: number, rate: number) => shownCost(withVat, net, rate);
+  const showPrice = (gross: number, rate: number) => shownPrice(withVat, gross, rate);
+
   const productById = new Map(products.map((p) => [p.id, p]));
   const productCost = new Map(products.map((p) => [p.id, p.cost_per_unit ?? 0]));
+  const productCostShown = new Map(
+    products.map((p) => [p.id, showCost(p.cost_per_unit ?? 0, productVatRate(p))]),
+  );
   const recipeById = new Map(recipes.map((r) => [r.id, r]));
+  // An unmatched till line has no recipe; most of what is sold is food (10%).
+  // (pos_sales_items is only filled by the old app — empty as of 2026-10-18.)
+  const recipeRate = (id: string | null) => {
+    const r = id ? recipeById.get(id) : undefined;
+    return r ? recipeVatRate(r) : 10;
+  };
   const recipeCost = buildRecipeCosts(ingredients, productCost);
+  const recipeCostShown = buildRecipeCosts(ingredients, productCostShown);
 
   const inPeriod = (iso: string) => iso >= from;
   const periodSales = sales.filter((s) => inPeriod(s.created_at));
@@ -170,39 +216,43 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
   const posDaysInPeriod = new Set(
     posImports.filter((i) => i.import_date >= from.slice(0, 10)).map((i) => i.import_date),
   );
+  // Revenue is summed twice: as shown, and net (for profit and the % figures).
   let revenueFromPos = 0;
+  let revenueNet = 0;
   for (const item of posItems) {
     const imp = importById.get(item.import_id);
-    if (imp && posDaysInPeriod.has(imp.import_date)) revenueFromPos += item.amount ?? 0;
+    if (!imp || !posDaysInPeriod.has(imp.import_date)) continue;
+    revenueFromPos += showPrice(item.amount ?? 0, recipeRate(item.recipe_id));
+    revenueNet += removeVat(item.amount ?? 0, recipeRate(item.recipe_id));
   }
   let revenueFromPrices = 0;
   for (const s of periodSales) {
     if (posDaysInPeriod.has(s.created_at.slice(0, 10))) continue; // already counted at the till
-    revenueFromPrices += s.quantity * (recipeById.get(s.recipe_id)?.selling_price ?? 0);
+    const gross = s.quantity * (recipeById.get(s.recipe_id)?.selling_price ?? 0);
+    revenueFromPrices += showPrice(gross, recipeRate(s.recipe_id));
+    revenueNet += removeVat(gross, recipeRate(s.recipe_id));
   }
   const revenue = revenueFromPos + revenueFromPrices;
 
   // ── COGS: what the sold portions cost to make ──
-  const cogs = periodSales.reduce(
-    (sum, s) => sum + s.quantity * (recipeCost.get(s.recipe_id) ?? 0),
-    0,
-  );
-  const wasteCost = waste.reduce(
-    (sum, w) => sum + w.quantity * (productCost.get(w.product_id) ?? 0),
-    0,
-  );
-  const grossProfit = revenue - cogs - wasteCost;
+  const sumSales = (cost: Map<string, number>) =>
+    periodSales.reduce((sum, s) => sum + s.quantity * (cost.get(s.recipe_id) ?? 0), 0);
+  const sumWaste = (cost: Map<string, number>) =>
+    waste.reduce((sum, w) => sum + w.quantity * (cost.get(w.product_id) ?? 0), 0);
+  const cogsNet = sumSales(recipeCost);
+  const wasteNet = sumWaste(productCost);
+  const grossProfit = revenueNet - cogsNet - wasteNet;
 
   const kpis: Kpis = {
     revenue,
     revenueFromPos,
     revenueFromPrices,
-    cogs,
-    wasteCost,
+    cogs: sumSales(recipeCostShown),
+    wasteCost: sumWaste(productCostShown),
     grossProfit,
-    marginPct: revenue > 0 ? (grossProfit / revenue) * 100 : null,
-    foodCostPct: revenue > 0 ? (cogs / revenue) * 100 : null,
-    wastePctOfRevenue: revenue > 0 ? (wasteCost / revenue) * 100 : null,
+    marginPct: revenueNet > 0 ? (grossProfit / revenueNet) * 100 : null,
+    foodCostPct: revenueNet > 0 ? (cogsNet / revenueNet) * 100 : null,
+    wastePctOfRevenue: revenueNet > 0 ? (wasteNet / revenueNet) * 100 : null,
     unitsSold: periodSales.reduce((s, x) => s + x.quantity, 0),
     uncostedUnits: periodSales.reduce(
       (s, x) => s + ((recipeCost.get(x.recipe_id) ?? 0) > 0 ? 0 : x.quantity),
@@ -226,13 +276,16 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
   for (const item of posItems) {
     const imp = importById.get(item.import_id);
     const idx = imp ? monthIndex.get(imp.import_date.slice(0, 7)) : undefined;
-    if (idx !== undefined) months[idx].revenue += item.amount ?? 0;
+    if (idx !== undefined) months[idx].revenue += showPrice(item.amount ?? 0, recipeRate(item.recipe_id));
   }
   for (const s of sales) {
     if (posDayAll.has(s.created_at.slice(0, 10))) continue;
     const idx = monthIndex.get(localMonthKey(new Date(s.created_at)));
     if (idx !== undefined) {
-      months[idx].revenue += s.quantity * (recipeById.get(s.recipe_id)?.selling_price ?? 0);
+      months[idx].revenue += showPrice(
+        s.quantity * (recipeById.get(s.recipe_id)?.selling_price ?? 0),
+        recipeRate(s.recipe_id),
+      );
     }
   }
 
@@ -241,14 +294,16 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
   for (const s of periodSales) {
     const recipe = recipeById.get(s.recipe_id);
     if (!recipe) continue;
-    const stat = stats.get(s.recipe_id) ?? { id: s.recipe_id, name: recipe.name, qty: 0, revenue: 0 };
+    const stat = stats.get(s.recipe_id) ?? { id: s.recipe_id, name: recipe.name, qty: 0, revenue: 0, revenueNet: 0 };
+    const gross = s.quantity * (recipe.selling_price ?? 0);
     stat.qty += s.quantity;
-    stat.revenue += s.quantity * (recipe.selling_price ?? 0);
+    stat.revenue += showPrice(gross, recipeVatRate(recipe));
+    stat.revenueNet += removeVat(gross, recipeVatRate(recipe));
     stats.set(s.recipe_id, stat);
   }
   // Name breaks revenue ties so classes don't shuffle between reloads.
   const ranked = [...stats.values()].sort(
-    (a, b) => b.revenue - a.revenue || a.name.localeCompare(b.name),
+    (a, b) => b.revenueNet - a.revenueNet || a.name.localeCompare(b.name),
   );
   // Keyed by id, not name — duplicate recipe names exist and collide as React keys.
   const neverSold = recipes
@@ -257,13 +312,13 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
     .sort((a, b) => a.name.localeCompare(b.name));
 
   // ── ABC: A = recipes making the first 70% of revenue, B to 90%, C the rest ──
-  const totalRanked = ranked.reduce((s, r) => s + r.revenue, 0);
+  const totalRanked = ranked.reduce((s, r) => s + r.revenueNet, 0);
   let running = 0;
   const abc: AbcRow[] = ranked.map((r) => {
     // Classify on the share BEFORE adding this item, so the top seller is always
     // A. Classifying after would make a lone recipe 100% cumulative — and "C".
     const before = totalRanked > 0 ? (running / totalRanked) * 100 : 0;
-    running += r.revenue;
+    running += r.revenueNet;
     const after = totalRanked > 0 ? (running / totalRanked) * 100 : 0;
     return { ...r, cumulativePct: after, klass: before < 70 ? 'A' : before < 90 ? 'B' : 'C' };
   });
@@ -310,9 +365,15 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
   // ── Food cost per recipe ──
   const foodCost: FoodCostRow[] = recipes
     .map((r) => {
-      const cost = recipeCost.get(r.id) ?? 0;
-      const price = r.selling_price ?? 0;
-      return { id: r.id, name: r.name, cost, price, foodCostPct: price > 0 ? (cost / price) * 100 : null };
+      const costNet = recipeCost.get(r.id) ?? 0;
+      const priceNet = removeVat(r.selling_price ?? 0, recipeVatRate(r));
+      return {
+        id: r.id,
+        name: r.name,
+        cost: recipeCostShown.get(r.id) ?? 0,
+        price: showPrice(r.selling_price ?? 0, recipeVatRate(r)),
+        foodCostPct: priceNet > 0 ? (costNet / priceNet) * 100 : null,
+      };
     })
     // Keep zero-cost recipes visible — those are the ones missing a norm, and
     // they're exactly what drags COGS to nothing. Hiding them hides the problem.
@@ -329,16 +390,19 @@ export async function loadAnalytics(days: number): Promise<AnalyticsData> {
   };
 
   const inventoryByCategory = sumBy(
-    products.map((p) => ({ key: p.category || '—', value: p.current_stock * (p.cost_per_unit ?? 0) })),
+    products.map((p) => ({ key: p.category || '—', value: p.current_stock * (productCostShown.get(p.id) ?? 0) })),
   );
   const wasteByProduct = sumBy(
     waste.map((w) => ({
       key: productById.get(w.product_id)?.name ?? '—',
-      value: w.quantity * (productCost.get(w.product_id) ?? 0),
+      value: w.quantity * (productCostShown.get(w.product_id) ?? 0),
     })),
   );
   const deliveriesBySupplier = sumBy(
-    purchases.map((p) => ({ key: p.supplier || 'Без добавувач', value: p.quantity * (p.cost_per_unit ?? 0) })),
+    purchases.map((p) => ({
+      key: p.supplier || 'Без добавувач',
+      value: showCost(p.quantity * (p.cost_per_unit ?? 0), p.ddv_rate ?? 0),
+    })),
   );
 
   return {

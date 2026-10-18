@@ -5,7 +5,7 @@ import type { Sale } from '@/lib/types';
 import { applyRecipeStock } from './stock';
 
 export interface SaleRow extends Sale {
-  recipe?: { name: string; category: string; selling_price: number } | null;
+  recipe?: { name: string; category: string; selling_price: number; ddv_rate: number | null } | null;
 }
 
 export interface SaleInput {
@@ -17,7 +17,7 @@ export interface SaleInput {
 export async function listSales(): Promise<SaleRow[]> {
   const { data, error } = await getSupabase()
     .from('sales')
-    .select('*, recipe:recipes(name,category,selling_price)')
+    .select('*, recipe:recipes(name,category,selling_price,ddv_rate)')
     .order('created_at', { ascending: false })
     .limit(500);
   if (error) throw error;

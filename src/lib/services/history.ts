@@ -79,7 +79,7 @@ export async function productHistory(productId: string, since: string | null): P
   const entries: HistoryEntry[] = [];
 
   for (const d of deliveries) {
-    const cost = Number(d.cost_per_unit) > 0 ? ` · ${fmtMKD(d.cost_per_unit)}/ед.` : '';
+    const cost = Number(d.cost_per_unit) > 0 ? ` · ${fmtMKD(d.cost_per_unit)}/ед. без ДДВ` : '';
     entries.push({
       id: `delivery-${d.id}`,
       kind: 'delivery',
