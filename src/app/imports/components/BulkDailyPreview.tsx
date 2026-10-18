@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { fmtDate } from '@/lib/format';
-import { bestMatch } from '@/lib/pos/match';
+import { bestMatch, isSpecialOrder } from '@/lib/pos/match';
 import type { ParsedDaily } from '@/lib/pos/parse';
 import { listRecipes, recipesWithIngredients } from '@/lib/services/recipes';
 import {
@@ -15,7 +15,9 @@ import {
   type DailySaleInput,
   type MappingInput,
 } from '@/lib/services/imports';
+import type { PosSpecial } from '@/lib/services/events';
 import { ImportWarning } from './ImportWarning';
+import { SpecialOrders } from './SpecialOrders';
 
 const SKIP = '__skip__';
 
@@ -26,6 +28,8 @@ interface DayPlan {
   unmatchedNames: string[];
   /** Matched recipes with no ingredients — sold, but no stock deducted. */
   noNormativNames: string[];
+  /** Special-order lines: not sold here, offered as events instead. */
+  specials: PosSpecial[];
   alreadyImported: boolean;
 }
 
@@ -64,7 +68,14 @@ export function BulkDailyPreview({ files, onDone }: { files: ParsedDaily[]; onDo
           const matched: DailySaleInput[] = [];
           const unmatchedNames: string[] = [];
           const noNormativ = new Set<string>();
+          const specials: PosSpecial[] = [];
           for (const item of file.items) {
+            // Its stock moves when the event is completed — selling it here
+            // too would deduct it twice.
+            if (isSpecialOrder(item.name)) {
+              specials.push({ date: file.date, name: item.name, qty: item.qty, amount: item.amount });
+              continue;
+            }
             const remembered = bySifra.get(item.sifra);
             if (remembered?.skip) continue;
             const recipeId = remembered?.recipe_id ?? bestMatch(item.name, recipes)?.item.id ?? '';
@@ -82,6 +93,7 @@ export function BulkDailyPreview({ files, onDone }: { files: ParsedDaily[]; onDo
             matched,
             unmatchedNames,
             noNormativNames: [...noNormativ],
+            specials,
             alreadyImported: importedDays.has(file.date),
           };
         });
@@ -101,6 +113,8 @@ export function BulkDailyPreview({ files, onDone }: { files: ParsedDaily[]; onDo
   const unmatchedTotal = withUnmatched.reduce((n, p) => n + p.unmatchedNames.length, 0);
   // Only matters when stock is being deducted at all.
   const noNormativ = deduct ? [...new Set(importable.flatMap((p) => p.noNormativNames))] : [];
+  // Only days being imported now: an earlier import may already have sold them.
+  const specials = importable.flatMap((p) => p.specials);
 
   async function importAll() {
     const problems = [
@@ -183,6 +197,8 @@ export function BulkDailyPreview({ files, onDone }: { files: ParsedDaily[]; onDo
           </p>
         )}
       </div>
+
+      <SpecialOrders specials={specials} />
 
       {unmatchedTotal > 0 && (
         <ImportWarning
