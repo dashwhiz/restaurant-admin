@@ -89,7 +89,19 @@ export function BulkDailyPreview({ files, onDone }: { files: ParsedDaily[]; onDo
   const importable = plans?.filter((p) => !p.alreadyImported && p.matched.length > 0) ?? [];
   const duplicates = plans?.filter((p) => p.alreadyImported).length ?? 0;
 
+  const withUnmatched = importable.filter((p) => p.unmatchedNames.length > 0);
+  const unmatchedTotal = withUnmatched.reduce((n, p) => n + p.unmatchedNames.length, 0);
+
   async function importAll() {
+    if (
+      unmatchedTotal > 0 &&
+      !window.confirm(
+        `${unmatchedTotal} ставки во ${withUnmatched.length} ден(а) не се поврзани со рецепт и НЕМА да се увезат:\n\n` +
+          withUnmatched.map((p) => `${fmtDate(p.date)}: ${p.unmatchedNames.join(', ')}`).join('\n') +
+          '\n\nПродолжи без нив?',
+      )
+    )
+      return;
     setBusy(true);
     try {
       if (mappings.length > 0) await saveMappings(mappings);
@@ -159,6 +171,24 @@ export function BulkDailyPreview({ files, onDone }: { files: ParsedDaily[]; onDo
           </p>
         )}
       </div>
+
+      {unmatchedTotal > 0 && (
+        <div className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+          <p className="font-semibold">
+            ⚠ {unmatchedTotal} ставки во {withUnmatched.length} ден(а) не се поврзани и нема да се увезат
+          </p>
+          <ul className="mt-1 text-muted">
+            {withUnmatched.map((p) => (
+              <li key={p.date}>
+                {fmtDate(p.date)}: {p.unmatchedNames.join(', ')}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs text-muted">
+            За да ги поврзеш, увези го тој ден поединечно — изборот се памти за следниот пат.
+          </p>
+        </div>
+      )}
 
       <div className="card">
         <label className="flex items-center gap-2 text-sm">

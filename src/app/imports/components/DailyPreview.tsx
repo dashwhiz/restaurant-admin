@@ -59,7 +59,20 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
     return r && r !== SKIP;
   }).length;
 
+  // Undecided rows are silently left out of the import — "Прескокни" is a
+  // deliberate choice, an empty picker usually isn't.
+  const unmatched = parsed.items.filter((i) => !resolutions[i.sifra]);
+
   async function confirm() {
+    if (
+      unmatched.length > 0 &&
+      !window.confirm(
+        `${unmatched.length} ставки не се поврзани со рецепт и НЕМА да се увезат:\n\n` +
+          unmatched.map((i) => `• ${i.name} (${i.qty})`).join('\n') +
+          '\n\nПродолжи без нив?',
+      )
+    )
+      return;
     setBusy(true);
     try {
       // Remember every resolution (one batched write) so the same šifra
@@ -169,6 +182,16 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
           </table>
         )}
       </div>
+
+      {unmatched.length > 0 && (
+        <div className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+          <p className="font-semibold">
+            ⚠ {unmatched.length} ставки не се поврзани и нема да се увезат
+          </p>
+          <p className="mt-1 text-muted">{unmatched.map((i) => i.name).join(', ')}</p>
+          <p className="mt-1 text-xs text-muted">Избери рецепт или „Прескокни“ за секоја од нив.</p>
+        </div>
+      )}
 
       <div className="mt-4 flex justify-end gap-2">
         <button className="btn-ghost" onClick={onDone}>Откажи</button>
