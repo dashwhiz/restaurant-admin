@@ -212,7 +212,9 @@ export async function importDaily(date: string, items: DailySaleInput[], deductS
   const sb = getSupabase();
   if (items.length === 0) return 0;
 
-  const rounded = items.map((it) => ({ recipeId: it.recipeId, qty: Math.round(it.qty) }));
+  // Kept to 3 decimals, never rounded to whole numbers: dishes sold by weight
+  // ("Јагнешко печење 0.400 KGR") used to become 0 or 1 and deduct wrong stock.
+  const rounded = items.map((it) => ({ recipeId: it.recipeId, qty: Math.round(it.qty * 1000) / 1000 }));
 
   // Stamp the sale with the day it was actually sold, not the moment of import.
   // Without this, importing a backlog puts every day's takings on today, and

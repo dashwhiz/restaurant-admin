@@ -25,7 +25,7 @@ See [`features/kalo.md`](./features/kalo.md).
 `supplier`, `notes`, `created_at`.
 
 ### `sales` — items sold
-`id`, `recipe_id`, `quantity` (integer), `notes`, `created_at`.
+`id`, `recipe_id`, `quantity` (numeric — dishes sold by weight, e.g. 0.4 kg; was integer until 2026-10-18), `notes`, `created_at`.
 
 ### `waste_log` — waste/spoilage out
 `id`, `product_id`, `quantity`, `reason`, `created_at`.

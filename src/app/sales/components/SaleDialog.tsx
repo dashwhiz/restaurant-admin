@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { createSale, updateSale, type SaleRow } from '@/lib/services/sales';
+import { num } from '@/lib/format';
 import type { Recipe } from '@/lib/types';
 
 export function SaleDialog({
@@ -31,7 +32,8 @@ export function SaleDialog({
 
   async function save() {
     if (!form.recipe_id) return toast('Избери рецепт', 'error');
-    const qty = parseInt(form.quantity, 10) || 1;
+    const qty = num(form.quantity);
+    if (qty <= 0) return toast('Внеси количина', 'error');
     setSaving(true);
     try {
       const input = { recipe_id: form.recipe_id, quantity: qty, notes: form.notes.trim() || null };
@@ -69,7 +71,7 @@ export function SaleDialog({
         </div>
         <div>
           <label className="label">Количина</label>
-          <input className="input" type="number" min="1" value={form.quantity} onChange={(e) => set({ quantity: e.target.value })} />
+          <input className="input" type="number" min="0" step="any" value={form.quantity} onChange={(e) => set({ quantity: e.target.value })} />
         </div>
         <div>
           <label className="label">Забелешка</label>
