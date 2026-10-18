@@ -4,6 +4,17 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-18 — Scan: pack price per piece
+
+- **Bug:** invoice 0092 had 4 × 1 pack of 20 tea bags at 76 ден. The scan
+  turned each pack into 20 pieces but kept the pack price, so Чај Кесички cost
+  64.41/bag and "Ч А Ј" showed 64 ден in Аналитика.
+- **Fix:** prompt rule now says to divide the pack price by the piece count
+  (`scan.ts` + edge function, deployed as v5). DB corrected with owner's OK:
+  4 purchases and the product now 3.22 ден without VAT (304 ден total with VAT).
+- **Watch:** on the same invoice, Тиквици are "piece" with qty 1.380 — looks
+  like kg; owner told. Not tested on a new invoice yet.
+
 ### 2026-10-18 — Product notes
 
 - **Done:** new nullable column `products.notes` (added live; same table, so
