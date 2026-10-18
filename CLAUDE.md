@@ -4,6 +4,14 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-18 — Product notes
+
+- **Done:** new nullable column `products.notes` (added live; same table, so
+  RLS/backups unchanged). Editable as "Забелешка" in the product dialog, shown
+  in small grey text under the name on Производи and Залиха / Попис.
+  Домат-сув already carries its reminder note.
+- **Status:** build green; not clicked through (needs login). Inline review.
+
 ### 2026-10-18 — Sales by weight, unitless POS lines
 
 - **Bug:** `sales.quantity` was `integer` and `importDaily` did `Math.round`,
