@@ -4,6 +4,18 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-18 — POS special orders → events
+
+- **Done:** "специјална нарачка" lines in a POS import now (1) default to
+  Прескокни in single-day and are always left out of sales in multi-day, so
+  stock isn't deducted twice (once as a sale, again when the event is
+  completed); (2) are offered as events in the multi-day import too; (3) can't
+  create duplicates — `createEventsFromPos` in `events.ts` skips an event with
+  the same name + date + type, and the button locks after use. Shared box:
+  `src/app/imports/components/SpecialOrders.tsx`.
+- **Status:** build green; not clicked through by Claude (needs login). Inline
+  review only.
+
 ### 2026-10-18 — Event menu recipe search
 
 - **Done:** in Настани → Мени (по гостин), the recipe dropdown is now a
