@@ -5,15 +5,15 @@ import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/PageHeader';
 import { useToast } from '@/components/ui/Toast';
 import { IconSearch } from '@/components/ui/Icons';
-import { fmtMKD, fmtDate } from '@/lib/format';
+import { fmtDate } from '@/lib/format';
 import { listRecipes, recipesWithIngredients } from '@/lib/services/recipes';
-import { createEvent } from '@/lib/services/events';
 import { getMappings, saveMappings, importDaily, type DailySaleInput, type MappingInput } from '@/lib/services/imports';
 import { bestMatch, isSpecialOrder } from '@/lib/pos/match';
 import type { ParsedDaily } from '@/lib/pos/parse';
 import type { Recipe } from '@/lib/types';
 import { RecipePicker, SKIP } from './RecipePicker';
 import { ImportWarning } from './ImportWarning';
+import { SpecialOrders } from './SpecialOrders';
 
 
 
@@ -34,11 +34,14 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
         setRecipes(recs);
         setWithIngredients(withIngs);
         const mapBySifra = new Map(maps.map((m) => [m.sifra, m]));
-        // Initial resolution per item: remembered mapping → fuzzy match → empty.
+        // Initial resolution per item: special order → skip; remembered
+        // mapping → fuzzy match → empty. A special order's stock moves when its
+        // event is completed, so selling it here too would deduct it twice.
         const init: Record<string, string> = {};
         for (const it of parsed.items) {
           const mapped = mapBySifra.get(it.sifra);
-          if (mapped) init[it.sifra] = mapped.skip ? SKIP : mapped.recipe_id ?? '';
+          if (isSpecialOrder(it.name)) init[it.sifra] = SKIP;
+          else if (mapped) init[it.sifra] = mapped.skip ? SKIP : mapped.recipe_id ?? '';
           else init[it.sifra] = bestMatch(it.name, recs)?.item.id ?? '';
         }
         setResolutions(init);
@@ -51,7 +54,13 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const specials = useMemo(() => parsed.items.filter((i) => isSpecialOrder(i.name)), [parsed.items]);
+  const specials = useMemo(
+    () =>
+      parsed.items
+        .filter((i) => isSpecialOrder(i.name))
+        .map((i) => ({ date: parsed.date, name: i.name, qty: i.qty, amount: i.amount })),
+    [parsed],
+  );
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return q ? parsed.items.filter((i) => i.name.toLowerCase().includes(q)) : parsed.items;
@@ -116,26 +125,6 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
     }
   }
 
-  async function makeEvents() {
-    try {
-      let created = 0;
-      for (const it of specials) {
-        await createEvent({
-          name: it.name,
-          type: 'Специјална нарачка',
-          event_date: parsed.date,
-          guest_count: Math.max(1, Math.round(it.qty)),
-          price_per_person: it.qty > 0 ? Number((it.amount / it.qty).toFixed(2)) : 0,
-          notes: `Од POS увоз (${parsed.date}) · вкупно ${fmtMKD(it.amount)}`,
-        });
-        created++;
-      }
-      toast(`Создадени ${created} настани. Дополни ги во Настани.`, 'success');
-    } catch (e) {
-      toast('Грешка: ' + (e as Error).message, 'error');
-    }
-  }
-
   if (loading) return <p className="text-sm text-muted">Вчитување…</p>;
 
   return (
@@ -150,9 +139,8 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
       </div>
 
       {specials.length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-purple-500/40 bg-purple-500/10 px-4 py-3 text-sm">
-          <span>{specials.length} специјална нарачка пронајдена.</span>
-          <button className="btn-ghost" onClick={makeEvents}>Префрли во Настани</button>
+        <div className="mb-3">
+          <SpecialOrders specials={specials} />
         </div>
       )}
 

@@ -1,6 +1,7 @@
 // Catering events. Completing an event deducts its menu's ingredients from
 // stock; deleting a completed event returns them. All via the stock helper.
 import { getSupabase } from '@/lib/supabase';
+import { fmtMKD } from '@/lib/format';
 import type { EventRow, EventMenuItem } from '@/lib/types';
 import { applyRecipeStock } from './stock';
 
@@ -44,6 +45,54 @@ export async function createEvent(input: EventInput): Promise<EventRow> {
   const { data, error } = await getSupabase().from('events').insert(input).select().single();
   if (error) throw error;
   return data as EventRow;
+}
+
+export const SPECIAL_ORDER_TYPE = 'Специјална нарачка';
+
+export interface PosSpecial {
+  date: string;
+  name: string;
+  qty: number;
+  amount: number;
+}
+
+/**
+ * Turn POS "special order" lines into events (menu left empty, to be filled
+ * in Настани). A line whose event already exists — same name, date and type —
+ * is skipped, so re-importing a day or clicking twice makes no duplicates.
+ * Returns how many were created and how many already existed.
+ */
+export async function createEventsFromPos(specials: PosSpecial[]): Promise<{ created: number; existing: number }> {
+  if (specials.length === 0) return { created: 0, existing: 0 };
+  const dates = [...new Set(specials.map((s) => s.date))];
+  const { data, error } = await getSupabase()
+    .from('events')
+    .select('name, event_date')
+    .eq('type', SPECIAL_ORDER_TYPE)
+    .in('event_date', dates);
+  if (error) throw error;
+  const key = (name: string, date: string | null) => `${date}|${name}`;
+  const seen = new Set((data ?? []).map((e) => key(e.name, e.event_date)));
+
+  const rows: EventInput[] = [];
+  for (const s of specials) {
+    const k = key(s.name, s.date);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    rows.push({
+      name: s.name,
+      type: SPECIAL_ORDER_TYPE,
+      event_date: s.date,
+      guest_count: Math.max(1, Math.round(s.qty)),
+      price_per_person: s.qty > 0 ? Number((s.amount / s.qty).toFixed(2)) : 0,
+      notes: `Од POS увоз (${s.date}) · вкупно ${fmtMKD(s.amount)}`,
+    });
+  }
+  if (rows.length) {
+    const { error: insErr } = await getSupabase().from('events').insert(rows);
+    if (insErr) throw insErr;
+  }
+  return { created: rows.length, existing: specials.length - rows.length };
 }
 
 export async function updateEvent(id: string, input: EventInput): Promise<void> {
