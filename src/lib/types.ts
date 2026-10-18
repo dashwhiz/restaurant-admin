@@ -21,6 +21,8 @@ export interface Product {
   kalo_trim: number | null;
   serving_size: number | null;
   serving_unit: string | null;
+  /** Free-text reminder for the owner, shown under the name. */
+  notes: string | null;
   created_at: string;
 }
 

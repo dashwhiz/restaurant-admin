@@ -185,6 +185,7 @@ export default function StocktakePage() {
                         {p.name}
                       </button>{' '}
                       <span className="text-muted">{p.unit}</span>
+                      {p.notes && <p className="mt-0.5 text-xs font-normal text-muted">{p.notes}</p>}
                     </td>
                     <td className="p-3 text-right text-muted">{p.current_stock}</td>
                     <td className="p-3 text-right">

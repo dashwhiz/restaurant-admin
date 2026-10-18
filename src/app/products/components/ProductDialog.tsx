@@ -47,6 +47,7 @@ export function ProductDialog({
         current_stock: num(form.current_stock),
         min_stock: num(form.min_stock),
         cost_per_unit: num(form.cost_per_unit),
+        notes: form.notes.trim() || null,
       };
       // Кало (yield/defrost/trim) and serving size aren't editable from this
       // form — only set sensible defaults on a brand new product, and leave an
@@ -118,6 +119,16 @@ export function ProductDialog({
           <label className="label">Мин. залиха</label>
           <input className="input" type="number" step="0.001" value={form.min_stock} onChange={(e) => set({ min_stock: e.target.value })} />
         </div>
+        <div className="col-span-2">
+          <label className="label">Забелешка</label>
+          <textarea
+            className="input"
+            rows={2}
+            placeholder="на пр. не е избројан, провери единица при прва куповина"
+            value={form.notes}
+            onChange={(e) => set({ notes: e.target.value })}
+          />
+        </div>
       </div>
     </Modal>
   );
@@ -132,5 +143,6 @@ function blank(p: Product | null) {
     cost_per_unit: String(p?.cost_per_unit ?? ''),
     current_stock: String(p?.current_stock ?? ''),
     min_stock: String(p?.min_stock ?? ''),
+    notes: p?.notes ?? '',
   };
 }

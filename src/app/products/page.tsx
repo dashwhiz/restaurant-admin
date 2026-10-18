@@ -181,6 +181,7 @@ export default function ProductsPage() {
                       <button className="text-left hover:text-primary hover:underline" onClick={() => setHistory(p)} title="Историја">
                         {p.name}
                       </button>
+                      {p.notes && <p className="mt-0.5 text-xs font-normal text-muted">{p.notes}</p>}
                     </td>
                     <td className="p-3">
                       <Badge tone="blue">{p.category}</Badge>
