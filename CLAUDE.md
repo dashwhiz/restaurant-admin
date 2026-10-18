@@ -16,8 +16,8 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
 - **Known limits:** sale/event amounts use today's recipe. POS days imported
   without "deduct stock" still show as sales. No running balance on purpose.
 - **Verified:** build green; a hand-run SQL timeline for Павлака (count 3 −
-  0.231 − 0.6) matches its stock of 2.169. Not clicked through in the app by
-  Claude (needs the owner's login). Review was inline, not the full review.
+  0.231 − 0.6) matches its stock of 2.169. Owner confirmed on the live site
+  that Павлака's history shows. Review was inline, not the full review.
 
 ### 2026-10-17 — Stock clean-up, Залиха / Попис page, minimums
 
