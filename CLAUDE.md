@@ -19,8 +19,9 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
   Events: Кетеринг 5%, other types 10% (by type, no column). Deliveries and
   scans keep the product rate = latest delivery's rate (0% / unread ignored).
 - **Data finding:** 38 dishes (Буковка, Вргањ, Лигњи, Шкампи, Сарма, Чварки,
-  Шампињони, Похувани…) are filed under category "Пијалок" — set to 10%, but
-  their category is still wrong (affects Бар/Кујна split). Owner not yet asked.
+  Шампињони, Похувани…) were filed under category "Пијалок". Set to 10%, and
+  at the owner's request moved to category "Храна" in the DB (all 38 updated).
+  A šifrarnik re-import could put them back under "Пијалок" — check then.
 - **Review:** full code review run; fixed 0%-delivery rate, rate update
   failing after a saved delivery, scans overwriting rates with an unread 18%,
   product dialog not following department, ABC reshuffling on the switch,
