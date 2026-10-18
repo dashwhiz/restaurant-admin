@@ -304,6 +304,10 @@ export function parseCenovnik(text: string): ParsedPrice[] {
 
 export function parseDaily(text: string): ParsedDaily {
   const DEN_RE = /^DEN\s+(\d{6})\s+(.+?)\s+(KOM|KGR|POR|LIT|KIT|NIZ)\s+(.+)$/;
+  // Some articles (e.g. "BRUSKETI") carry no unit at all. Without this they
+  // vanished from the import with no warning. The name ends at the wide column
+  // gap — a single space can't be the cut, or "PIVO 0.5" would lose its size.
+  const DEN_NO_UNIT_RE = /^DEN\s+(\d{6})\s+(.+?)\s{2,}(\d+\.\d+\s+.+)$/;
   const lines = text.split(/\r?\n/);
   let date = new Date().toISOString().slice(0, 10);
   for (const line of lines.slice(0, 15)) {
@@ -315,16 +319,18 @@ export function parseDaily(text: string): ParsedDaily {
   }
   const seen: Record<string, ParsedDaily['items'][number]> = {};
   for (const line of lines) {
-    const m = DEN_RE.exec(line);
-    if (!m) continue;
-    const sifra = m[1];
+    const withUnit = DEN_RE.exec(line);
+    const noUnit = withUnit ? null : DEN_NO_UNIT_RE.exec(line);
+    if (!withUnit && !noUnit) continue;
+    const sifra = (withUnit ?? noUnit)![1];
     // Don't strip a trailing bottle/pour size (e.g. "Скопско 0.33" vs "Скопско
     // 0.5") — it's the part of the name that distinguishes otherwise-identical
     // recipes, and the recipe list keeps it too. Stripping it collapsed both
     // sizes to the same bare name and made them fail to match anything.
-    const name = cleanPOSName(m[2].trim());
-    const unit = UNIT_MAP[m[3]] || 'piece';
-    const nums = (m[4].match(/[\d]+\.[\d]+/g) || []).map(Number);
+    const name = cleanPOSName((withUnit ?? noUnit)![2].trim());
+    const unit = withUnit ? UNIT_MAP[withUnit[3]] || 'piece' : 'piece';
+    const rest = withUnit ? withUnit[4] : noUnit![3];
+    const nums = (rest.match(/[\d]+\.[\d]+/g) || []).map(Number);
     if (nums.length < 2) continue;
     const qty = nums[0];
     const amount = nums[1];
