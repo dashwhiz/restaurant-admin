@@ -4,6 +4,21 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-18 — Product history window
+
+- **Done:** clicking a product name on Производи or Залиха / Попис opens
+  "Историја": deliveries, sales (incl. POS), waste, counts, completed events
+  and stock resets for that product. It has type filters, a period selector
+  (7/30/90 days/all) and per-type totals. Service: `src/lib/services/history.ts`.
+- **Resets are now logged:** new table `stock_adjustments` (RLS on, added to
+  `rls.sql`, backups, health, clean-up). "Нулирај залиха" writes one row per
+  zeroed product. Earlier resets (incl. 2026-10-17) were never recorded.
+- **Known limits:** sale/event amounts use today's recipe. POS days imported
+  without "deduct stock" still show as sales. No running balance on purpose.
+- **Verified:** build green; a hand-run SQL timeline for Павлака (count 3 −
+  0.231 − 0.6) matches its stock of 2.169. Not clicked through in the app by
+  Claude (needs the owner's login). Review was inline, not the full review.
+
 ### 2026-10-17 — Stock clean-up, Залиха / Попис page, minimums
 
 - **Reset stock:** the owner cleared all history in Поставки and stock stayed.
