@@ -8,15 +8,20 @@ without changing the database too.
 
 ### `products` — raw items / stock
 `id`, `name`, `category`, `unit`, `current_stock`, `min_stock`,
-`cost_per_unit`, `department` (`Бар`/`Кујна`), `notes` (owner's free-text
-reminder, nullable; added 2026-10-18), `created_at`.
+`cost_per_unit` (**without** VAT), `department` (`Бар`/`Кујна`), `notes` (owner's
+free-text reminder, nullable; added 2026-10-18), `ddv_rate` (purchase VAT %,
+nullable — the latest delivery's rate; null means guessed by department, see
+`src/lib/vat.ts`; added 2026-10-18), `created_at`.
 Kalo columns (raw-prep loss only): `kalo_defrost`, `kalo_trim`,
 `serving_size`, `serving_unit`. There is **no** `yield_pct` column — usable
 yield is derived from the two kalo percentages.
 See [`features/kalo.md`](./features/kalo.md).
 
 ### `recipes` — sellable items
-`id`, `name`, `category`, `selling_price`, `price_updated_at`, `created_at`.
+`id`, `name`, `category`, `selling_price` (**with** VAT — the till price),
+`ddv_rate` (sales VAT %: 10 food and non-alcoholic drinks, 18 alcohol;
+nullable, null → guessed by category; added 2026-10-18), `price_updated_at`,
+`created_at`.
 
 ### `recipe_ingredients` — links a recipe to its products
 `id`, `recipe_id`, `product_id`, `quantity`. Cascade-deletes with the recipe/product.

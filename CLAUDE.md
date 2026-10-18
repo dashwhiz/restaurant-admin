@@ -4,6 +4,31 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-18 — ДДВ switch (Без ДДВ / Со ДДВ)
+
+- **Done:** a switch at the top of the sidebar (and in the mobile header)
+  shows every price/cost with or without VAT; a yellow banner stays up while
+  "Со ДДВ" is on. Remembered per browser (`lira-vat`). Helpers in
+  `src/lib/vat.ts`, switch/hook in `src/components/layout/Vat.tsx`.
+- **Profit, margin, food cost %, waste % are always without VAT** on both
+  sides. Before this, margin compared cost without VAT to price with VAT and
+  came out too high (Цени and Аналитика).
+- **DB:** new `products.ddv_rate` (14 filled from their latest purchase; null
+  → Кујна 5% / Бар 18%) and `recipes.ddv_rate` (food 10%; drinks 18%, except
+  56 non-alcoholic ones set to 10% from the owner's menu at lyra-menu.fyi).
+  Events: Кетеринг 5%, other types 10% (by type, no column). Deliveries and
+  scans keep the product rate = latest delivery's rate (0% / unread ignored).
+- **Data finding:** 38 dishes (Буковка, Вргањ, Лигњи, Шкампи, Сарма, Чварки,
+  Шампињони, Похувани…) are filed under category "Пијалок" — set to 10%, but
+  their category is still wrong (affects Бар/Кујна split). Owner not yet asked.
+- **Review:** full code review run; fixed 0%-delivery rate, rate update
+  failing after a saved delivery, scans overwriting rates with an unread 18%,
+  product dialog not following department, ABC reshuffling on the switch,
+  duplicate conversion, unlabeled CSVs/history. Skipped: double compute in
+  analytics (small data), unmatched POS lines at 10% (`pos_sales_items` empty).
+- **Status:** build green; not clicked through (needs login). Tea checked in
+  SQL: cost 3.22 / 3.80, price 90.91 / 100, margin 96% both ways.
+
 ### 2026-10-18 — Scan: pack price per piece
 
 - **Bug:** invoice 0092 had 4 × 1 pack of 20 tea bags at 76 ден. The scan
