@@ -7,6 +7,7 @@ import { IconPlus, IconTrash } from '@/components/ui/Icons';
 import { num } from '@/lib/format';
 import { createEvent, updateEvent, setEventMenu, type MenuDraft } from '@/lib/services/events';
 import type { EventRow, Recipe } from '@/lib/types';
+import { RecipePicker } from './RecipePicker';
 
 const TYPES = ['Свадба', 'Прослава', 'Кетеринг', 'Специјална нарачка', 'Друго'];
 
@@ -118,10 +119,7 @@ export function EventDialog({
         <div className="flex flex-col gap-2">
           {menu.map((row, i) => (
             <div key={i} className="flex items-center gap-2">
-              <select className="input flex-1" value={row.recipe_id} onChange={(e) => setRow(i, { recipe_id: e.target.value })}>
-                <option value="">Рецепт…</option>
-                {recipes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
+              <RecipePicker value={row.recipe_id} recipes={recipes} onChange={(id) => setRow(i, { recipe_id: id })} />
               <input
                 className="input w-24"
                 type="number"
