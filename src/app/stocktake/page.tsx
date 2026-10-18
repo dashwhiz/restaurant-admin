@@ -8,6 +8,7 @@ import { num, departmentOf } from '@/lib/format';
 import { listProducts, setMinStocks } from '@/lib/services/products';
 import { submitStocktake, type StocktakeEntry } from '@/lib/services/stocktake';
 import type { Product } from '@/lib/types';
+import { ProductHistory } from '@/app/products/components/ProductHistory';
 
 export default function StocktakePage() {
   const toast = useToast();
@@ -23,6 +24,7 @@ export default function StocktakePage() {
   const [countDate, setCountDate] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState<Product | null>(null);
 
   async function load() {
     setLoading(true);
@@ -178,7 +180,12 @@ export default function StocktakePage() {
                 const diff = raw === '' ? null : num(raw) - p.current_stock;
                 return (
                   <tr key={p.id} className="border-b border-border/60 last:border-0">
-                    <td className="p-3 font-semibold">{p.name} <span className="text-muted">{p.unit}</span></td>
+                    <td className="p-3 font-semibold">
+                      <button className="text-left hover:text-primary hover:underline" onClick={() => setHistory(p)} title="Историја">
+                        {p.name}
+                      </button>{' '}
+                      <span className="text-muted">{p.unit}</span>
+                    </td>
                     <td className="p-3 text-right text-muted">{p.current_stock}</td>
                     <td className="p-3 text-right">
                       <input
@@ -210,6 +217,8 @@ export default function StocktakePage() {
           </table>
         )}
       </div>
+
+      <ProductHistory product={history} onClose={() => setHistory(null)} />
     </>
   );
 }

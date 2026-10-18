@@ -10,6 +10,7 @@ import { exportCsv } from '@/lib/csv';
 import { listProducts, deleteProduct } from '@/lib/services/products';
 import type { Product } from '@/lib/types';
 import { ProductDialog } from './components/ProductDialog';
+import { ProductHistory } from './components/ProductHistory';
 
 export default function ProductsPage() {
   const toast = useToast();
@@ -24,6 +25,7 @@ export default function ProductsPage() {
     open: false,
     product: null,
   });
+  const [history, setHistory] = useState<Product | null>(null);
 
   async function load() {
     setLoading(true);
@@ -175,7 +177,11 @@ export default function ProductsPage() {
                 const low = !out && p.min_stock > 0 && p.current_stock <= p.min_stock;
                 return (
                   <tr key={p.id} className="border-b border-border/60 last:border-0">
-                    <td className="p-3 font-semibold">{p.name}</td>
+                    <td className="p-3 font-semibold">
+                      <button className="text-left hover:text-primary hover:underline" onClick={() => setHistory(p)} title="Историја">
+                        {p.name}
+                      </button>
+                    </td>
                     <td className="p-3">
                       <Badge tone="blue">{p.category}</Badge>
                     </td>
@@ -210,6 +216,7 @@ export default function ProductsPage() {
         onClose={() => setDialog({ open: false, product: null })}
         onSaved={load}
       />
+      <ProductHistory product={history} onClose={() => setHistory(null)} />
     </>
   );
 }
