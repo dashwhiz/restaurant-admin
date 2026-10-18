@@ -4,6 +4,22 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-18 — Sales by weight, unitless POS lines
+
+- **Bug:** `sales.quantity` was `integer` and `importDaily` did `Math.round`,
+  so dishes sold by KGR were saved as whole numbers (Јагнешко печење 0.400 →
+  1, Св.ребра 3.300 → 3, Свин. кол. 0.700 → 1) and stock deducted wrongly.
+- **DB (done live, owner approved):** `sales.quantity` is now `numeric`. The 3
+  sales of 2026-10-17 were corrected and the ingredient difference applied to
+  stock (e.g. Јагнешко Месо +0.96 kg).
+- **Code:** import keeps 3 decimals; manual sale form accepts decimals; the
+  daily parser now reads lines with no unit (БРУСКЕТИ was silently dropped).
+- **Open:** no "Брускети" recipe exists (šifrarnik line likely also has no
+  unit — parser not changed, no sample file). The 2 Брускети of 2026-10-17
+  were never recorded; owner to create the recipe, then add the sale.
+- **Status:** build green; parser checked against `Documents\17.10.26.TXT`
+  (75 items, Брускети included). Not clicked through. Inline review only.
+
 ### 2026-10-18 — POS special orders → events
 
 - **Done:** "специјална нарачка" lines in a POS import now (1) default to
