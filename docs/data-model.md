@@ -33,6 +33,11 @@ See [`features/kalo.md`](./features/kalo.md).
 ### `stocktake_log` — physical counts
 `id`, `product_id`, `system_qty`, `counted_qty`, `difference`, `created_at`.
 
+### `stock_adjustments` — stock changes with no other record
+`id`, `product_id`, `previous_qty`, `new_qty`, `reason`, `created_at`.
+Written by "Нулирај залиха" (one row per zeroed product) so the product
+history can show resets. Added 2026-10-18; cascade-deletes with the product.
+
 ### `events` — catering / special orders
 `id`, `name`, `type`, `event_date`, `guest_count`, `price_per_person`,
 `status` (`planned`/`done`), `notes`, `created_at`.
@@ -49,9 +54,9 @@ See [`features/kalo.md`](./features/kalo.md).
 ### `pos_mappings` — remembered POS matches
 `id`, `sifra` (unique), `recipe_id`, `skip`, `created_at`.
 
-Lets a šifra auto-match its recipe on the next import. Created 2026-07-27; it's
-the only table this rewrite added — everything else predates it and came from the
-old app.
+Lets a šifra auto-match its recipe on the next import. Created 2026-07-27. This
+rewrite also added `scan_mappings` and `stock_adjustments`; everything else
+predates it and came from the old app.
 
 ## Row-Level Security
 

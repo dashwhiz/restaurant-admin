@@ -19,6 +19,7 @@ const TABLES: { table: string; label: string }[] = [
   { table: 'sales', label: 'Продажби' },
   { table: 'waste_log', label: 'Отпад' },
   { table: 'stocktake_log', label: 'Попис' },
+  { table: 'stock_adjustments', label: 'Нулирања на залиха' },
   { table: 'events', label: 'Настани' },
   { table: 'event_menu_items', label: 'Ставки на настани' },
   { table: 'pos_imports', label: 'POS увози' },

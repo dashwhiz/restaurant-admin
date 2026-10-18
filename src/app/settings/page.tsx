@@ -95,8 +95,8 @@ export default function SettingsPage() {
     if (!confirm('Постави ја залихата на 0 за СИТЕ производи?\n\nПроизводите и рецептите остануваат. Не може да се поништи.')) return;
     setResetting(true);
     try {
-      await resetAllStock();
-      toast('Залихата е нулирана', 'success');
+      const n = await resetAllStock();
+      toast(n ? `Залихата е нулирана за ${n} производи` : 'Залихата веќе е 0 насекаде', 'success');
     } catch (e) {
       toast('Грешка: ' + (e as Error).message, 'error');
     } finally {

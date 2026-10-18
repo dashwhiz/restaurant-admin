@@ -41,7 +41,7 @@ export async function setMinStocks(changes: { id: string; min_stock: number }[])
  */
 export async function deleteProduct(id: string): Promise<void> {
   const sb = getSupabase();
-  for (const table of ['recipe_ingredients', 'purchases', 'waste_log', 'stocktake_log']) {
+  for (const table of ['recipe_ingredients', 'purchases', 'waste_log', 'stocktake_log', 'stock_adjustments']) {
     const { error } = await sb.from(table).delete().eq('product_id', id);
     if (error) throw error;
   }

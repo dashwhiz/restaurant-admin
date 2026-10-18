@@ -77,6 +77,17 @@ export interface StocktakeLog {
   created_at: string;
 }
 
+// A stock change that has no other record of its own (e.g. "Нулирај залиха"),
+// kept so the product history can show it.
+export interface StockAdjustment {
+  id: string;
+  product_id: string;
+  previous_qty: number;
+  new_qty: number;
+  reason: string;
+  created_at: string;
+}
+
 export interface EventRow {
   id: string;
   name: string;

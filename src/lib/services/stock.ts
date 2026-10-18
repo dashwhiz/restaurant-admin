@@ -1,6 +1,7 @@
 // Shared stock mutation helpers. EVERY change to products.current_stock goes
 // through here so edits/deletes are exactly reversible. See docs/features/stock.md.
 import { getSupabase } from '@/lib/supabase';
+import { fetchAllRows } from './paged';
 
 /**
  * Apply a signed delta to a product's stock. Reads the current value fresh from
@@ -40,8 +41,31 @@ export async function applyRecipeStock(recipeId: string, multiplier: number): Pr
 /**
  * Set every product's stock to 0. Used from Settings after history has been
  * cleared, since clearing removes rows without reversing their stock effect.
+ * Each zeroed product gets a stock_adjustments row so its history shows the
+ * reset and what the stock was before. Returns how many products changed.
  */
-export async function resetAllStock(): Promise<void> {
-  const { error } = await getSupabase().from('products').update({ current_stock: 0 }).neq('current_stock', 0);
-  if (error) throw error;
+export async function resetAllStock(): Promise<number> {
+  const sb = getSupabase();
+  const all = await fetchAllRows<{ id: string; current_stock: number }>('products', {
+    select: 'id, current_stock',
+  });
+  const nonZero = all.filter((p) => Number(p.current_stock) !== 0);
+  if (nonZero.length === 0) return 0;
+
+  const ids = nonZero.map((p) => p.id);
+  for (let i = 0; i < ids.length; i += 200) {
+    const { error } = await sb.from('products').update({ current_stock: 0 }).in('id', ids.slice(i, i + 200));
+    if (error) throw error;
+  }
+
+  const { error: logErr } = await sb.from('stock_adjustments').insert(
+    nonZero.map((p) => ({
+      product_id: p.id,
+      previous_qty: Number(p.current_stock) || 0,
+      new_qty: 0,
+      reason: 'Нулирај залиха',
+    })),
+  );
+  if (logErr) throw logErr;
+  return nonZero.length;
 }

@@ -12,6 +12,7 @@ export const BACKUP_TABLES = [
   'sales',
   'waste_log',
   'stocktake_log',
+  'stock_adjustments',
   'events',
   'event_menu_items',
   'pos_imports',

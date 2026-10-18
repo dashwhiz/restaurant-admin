@@ -10,6 +10,7 @@ const ORDER = [
   'pos_imports',
   'event_menu_items',
   'events',
+  'stock_adjustments',
   'stocktake_log',
   'waste_log',
   'sales',
@@ -46,7 +47,7 @@ export const CLEARABLE = [
   { key: 'sales', label: 'Продажби', tables: ['sales'] },
   { key: 'purchases', label: 'Испораки', tables: ['purchases'] },
   { key: 'waste', label: 'Отпад', tables: ['waste_log'] },
-  { key: 'stocktake', label: 'Попис', tables: ['stocktake_log'] },
+  { key: 'stocktake', label: 'Попис и нулирања', tables: ['stocktake_log', 'stock_adjustments'] },
   { key: 'events', label: 'Настани', tables: ['event_menu_items', 'events'] },
   {
     key: 'recipes',
@@ -56,7 +57,7 @@ export const CLEARABLE = [
   {
     key: 'products',
     label: 'Производи (и сè поврзано)',
-    tables: ['recipe_ingredients', 'purchases', 'waste_log', 'stocktake_log', 'scan_mappings', 'products'],
+    tables: ['recipe_ingredients', 'purchases', 'waste_log', 'stocktake_log', 'stock_adjustments', 'scan_mappings', 'products'],
   },
 ] as const;
 
