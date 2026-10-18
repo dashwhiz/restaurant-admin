@@ -56,7 +56,7 @@ Return exactly this structure:
 Rules:
 - Keep product names in their original language/script. Do NOT translate.
 - Extract EVERY product line, even if some prices are missing.
-- Units must be one of: L, ml, kg, g, bottle, can, piece, portion, pack, bag, box. Map КГ→kg, Л→L, КОМ/ПАРЧ→piece, ПОР→portion. If a case/carton shows a piece count, convert to pieces.
+- Units must be one of: L, ml, kg, g, bottle, can, piece, portion, pack, bag, box. Map КГ→kg, Л→L, КОМ/ПАРЧ→piece, ПОР→portion. If a case/carton/pack shows a piece count, convert to pieces AND divide its price by that count, so the price stays per single piece (1 pack of 20 tea bags at 76.00 → quantity 20, price_with_ddv 3.80 — never 20 at 76.00).
 - ddv_rate is a number only (5, 10 or 18), not "18%".
 - Prices are PER SINGLE UNIT, not line totals. A fiscal receipt's prices INCLUDE VAT (fill price_with_ddv, leave price_without_ddv null); an invoice usually lists price without VAT. Use null for any price you cannot read.
 - doc_type: "fiscal" for a фискална сметка, "note" for испратница, otherwise "invoice".`;

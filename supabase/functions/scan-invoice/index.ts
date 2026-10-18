@@ -49,7 +49,7 @@ Return exactly this structure:
 Rules:
 - Keep product names in their original language/script (Macedonian). Do NOT translate to English — the app matches them against a Macedonian code list.
 - Extract EVERY product line, even if some prices are missing.
-- Units must be one of: L, ml, kg, g, bottle, can, piece, portion, pack, bag, box. Map Macedonian units: КГ/kg→kg, Л/L→L, КОМ/ПАРЧ→piece, ПОР→portion. If a case/carton shows a piece count, convert to pieces.
+- Units must be one of: L, ml, kg, g, bottle, can, piece, portion, pack, bag, box. Map Macedonian units: КГ/kg→kg, Л/L→L, КОМ/ПАРЧ→piece, ПОР→portion. If a case/carton/pack shows a piece count, convert to pieces AND divide its price by that count, so the price stays per single piece (1 pack of 20 tea bags at 76.00 → quantity 20, price_with_ddv 3.80 — never 20 at 76.00).
 - DDV (ДДВ, VAT) is a percentage — usually 5, 10, or 18 in North Macedonia. Put the number only (e.g. 18), not "18%".
 - price_without_ddv = unit price before VAT; price_with_ddv = unit price including VAT. Prices are PER SINGLE UNIT, not line totals. If only one price is shown, decide from the document type: a fiscal receipt (фискална сметка) prices INCLUDE VAT (fill price_with_ddv, leave price_without_ddv null); an invoice usually lists price without VAT (fill price_without_ddv). Use null for any price you cannot read.
 - doc_type: "fiscal" for a фискална сметка, "note" for испратница/белешка, otherwise "invoice".
