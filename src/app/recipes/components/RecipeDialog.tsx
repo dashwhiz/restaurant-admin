@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { IconPlus, IconTrash } from '@/components/ui/Icons';
@@ -13,9 +13,11 @@ import {
   setRecipeIngredients,
   type IngredientDraft,
 } from '@/lib/services/recipes';
+import { planNormativStock, applyNormativStock, type NormativStockChange } from '@/lib/services/normativ';
 import type { Product, Recipe } from '@/lib/types';
 
 const CATEGORIES = ['Храна', 'Пијалок', 'Десерт', 'Предјадење'];
+const signed = (n: number) => (n > 0 ? '+' : '') + Number(n.toFixed(3));
 
 // Quantity kept as a string while editing — a controlled number input that
 // parses on every keystroke snaps "0" back to "" (0 is falsy), which makes it
@@ -47,33 +49,81 @@ export function RecipeDialog({
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(() => blank(recipe));
   const [items, setItems] = useState<Row[]>(() => toRows(initialIngredients));
-  const [lastId, setLastId] = useState<string | null>(recipe?.id ?? null);
-  if (open && (recipe?.id ?? null) !== lastId) {
-    setLastId(recipe?.id ?? null);
-    setForm(blank(recipe));
-    setItems(toRows(initialIngredients));
+  // Stock corrections waiting for the owner's choice; null = not asked yet.
+  const [plan, setPlan] = useState<NormativStockChange[] | null>(null);
+  // Bumped on every ingredient edit, so a plan that finishes loading after an
+  // edit is thrown away instead of being applied to different ingredients.
+  const edits = useRef(0);
+  // Start fresh on EVERY open, not only when the recipe changes: the dialog
+  // stays mounted, and a plan left over from the last save would otherwise
+  // offer to apply the same correction a second time.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setForm(blank(recipe));
+      setItems(toRows(initialIngredients));
+      setPlan(null);
+    }
   }
   const set = (p: Partial<ReturnType<typeof blank>>) => setForm((f) => ({ ...f, ...p }));
 
-  const addRow = () => setItems((it) => [...it, { product_id: '', quantity: '' }]);
+  // Any edit to the ingredients makes a shown correction stale.
+  const editItems = (fn: (it: Row[]) => Row[]) => {
+    edits.current++;
+    setPlan(null);
+    setItems(fn);
+  };
+  const addRow = () => editItems((it) => [...it, { product_id: '', quantity: '' }]);
   const setRow = (i: number, patch: Partial<Row>) =>
-    setItems((it) => it.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
-  const removeRow = (i: number) => setItems((it) => it.filter((_, idx) => idx !== i));
+    editItems((it) => it.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const removeRow = (i: number) => editItems((it) => it.filter((_, idx) => idx !== i));
 
+  const drafts = (): IngredientDraft[] =>
+    items
+      .filter((i) => i.product_id && num(i.quantity) > 0)
+      .map((i) => ({ product_id: i.product_id, quantity: num(i.quantity) }));
+
+  // First click on an existing recipe: if the new normativ would change stock
+  // already taken by past sales, show that and let the owner choose.
   async function save() {
     if (!form.name.trim()) return toast('Внеси назив', 'error');
-    const ings = items.filter((i) => i.product_id && num(i.quantity) > 0);
+    if (!recipe) return persist([]);
     setSaving(true);
+    const startedAt = edits.current;
+    try {
+      const changes = await planNormativStock(new Map([[recipe.id, drafts()]]));
+      if (edits.current !== startedAt) return; // edited meanwhile — press Зачувај again
+      if (changes.length) setPlan(changes);
+      else await persist([]);
+    } catch (e) {
+      toast('Грешка: ' + (e as Error).message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function persist(fix: NormativStockChange[]) {
+    setSaving(true);
+    const name = form.name.trim();
     try {
       const input = {
-        name: form.name.trim(),
+        name,
         category: form.category.trim() || 'Храна',
         selling_price: num(form.selling_price),
         ddv_rate: num(form.ddv_rate),
       };
       const id = recipe ? (await updateRecipe(recipe.id, input), recipe.id) : (await createRecipe(input)).id;
-      await setRecipeIngredients(id, ings.map((i): IngredientDraft => ({ product_id: i.product_id, quantity: num(i.quantity) })));
-      toast(recipe ? 'Зачувано' : 'Додадено', 'success');
+      await setRecipeIngredients(id, drafts());
+      setPlan(null);
+      try {
+        if (fix.length) await applyNormativStock(fix, name);
+      } catch (e) {
+        toast('Нормативот е зачуван, но поправката на залиха не успеа целосно: ' + (e as Error).message, 'error');
+        onSaved();
+        return onClose();
+      }
+      toast(fix.length ? `Зачувано — залихата е поправена за ${fix.length} производи` : recipe ? 'Зачувано' : 'Додадено', 'success');
       onSaved();
       onClose();
     } catch (e) {
@@ -89,12 +139,44 @@ export function RecipeDialog({
       onClose={onClose}
       title={recipe ? 'Измени рецепт' : 'Нов рецепт'}
       footer={
-        <>
-          <button className="btn-ghost" onClick={onClose}>Откажи</button>
-          <button className="btn-primary" onClick={save} disabled={saving}>{saving ? 'Зачувување…' : 'Зачувај'}</button>
-        </>
+        plan ? (
+          <>
+            <button className="btn-ghost" onClick={() => setPlan(null)} disabled={saving}>Назад</button>
+            <button className="btn-ghost" onClick={() => persist([])} disabled={saving}>Само зачувај</button>
+            <button className="btn-primary" onClick={() => persist(plan)} disabled={saving}>
+              {saving ? 'Зачувување…' : 'Зачувај и поправи залиха'}
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="btn-ghost" onClick={onClose}>Откажи</button>
+            <button className="btn-primary" onClick={save} disabled={saving}>{saving ? 'Зачувување…' : 'Зачувај'}</button>
+          </>
+        )
       }
     >
+      {plan && (
+        <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+          <p className="font-semibold">⚠ Овој рецепт веќе е продаван — новиот норматив ја менува залихата</p>
+          <ul className="mt-2 grid gap-0.5">
+            {plan.map((c) => (
+              <li key={c.productId} className="flex justify-between gap-3">
+                <span>
+                  {c.name} <span className="text-xs text-muted">({c.portions} порц.)</span>
+                </span>
+                <span className={`font-semibold ${c.delta < 0 ? 'text-danger' : 'text-success'}`}>
+                  {signed(c.delta)} {c.unit}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-muted">
+            <b>Зачувај и поправи залиха</b> — ако стариот норматив бил грешка. Се сметаат само продажбите после
+            последниот попис на секој производ. <b>Само зачувај</b> — ако рецептот се менува од денес, а старите
+            продажби биле точни (тогаш бришење стара продажба ќе врати по новиот норматив).
+          </p>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <label className="label">Назив</label>

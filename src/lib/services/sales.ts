@@ -34,12 +34,14 @@ export async function updateSale(id: string, input: SaleInput): Promise<void> {
   const sb = getSupabase();
   const { data: old, error: oErr } = await sb
     .from('sales')
-    .select('recipe_id, quantity')
+    .select('recipe_id, quantity, stock_deducted')
     .eq('id', id)
     .single();
   if (oErr) throw oErr;
   const { error } = await sb.from('sales').update(input).eq('id', id);
   if (error) throw error;
+  // A sale imported without deducting stock stays that way when edited.
+  if (old.stock_deducted === false) return;
   await applyRecipeStock(old.recipe_id as string, -(Number(old.quantity) || 0));
   await applyRecipeStock(input.recipe_id, input.quantity);
 }
@@ -48,11 +50,13 @@ export async function deleteSale(id: string): Promise<void> {
   const sb = getSupabase();
   const { data: old, error: oErr } = await sb
     .from('sales')
-    .select('recipe_id, quantity')
+    .select('recipe_id, quantity, stock_deducted')
     .eq('id', id)
     .single();
   if (oErr) throw oErr;
   const { error } = await sb.from('sales').delete().eq('id', id);
   if (error) throw error;
+  // Nothing to give back if it never took any (imported without deducting).
+  if (old.stock_deducted === false) return;
   await applyRecipeStock(old.recipe_id as string, -(Number(old.quantity) || 0));
 }

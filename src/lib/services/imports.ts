@@ -5,6 +5,7 @@ import type { Recipe, Product, PosMapping, Department } from '@/lib/types';
 import { bestMatch } from '@/lib/pos/match';
 import { departmentOf } from '@/lib/format';
 import { fetchAllRows } from './paged';
+import { planNormativStock, applyNormativStock, type IngredientAmount } from './normativ';
 import type { ParsedItem, ParsedNormativ, ParsedPrice } from '@/lib/pos/parse';
 
 const TABLE_MISSING = /does not exist|find the table|relation|schema cache/i;
@@ -85,7 +86,9 @@ export async function importNormativi(
   parsed: ParsedNormativ[],
   dbRecipes: Recipe[],
   dbProducts: Product[],
-): Promise<{ linked: number; newProducts: number }> {
+  /** Correct stock already taken by past sales of recipes whose normativ changes. */
+  fixStock: boolean,
+): Promise<{ linked: number; newProducts: number; stockFixed: number }> {
   const sb = getSupabase();
   const matched = bestPerTarget(
     parsed
@@ -130,12 +133,10 @@ export async function importNormativi(
     newProducts += slice.length;
   }
 
-  // Replace ingredients for all matched recipes.
+  // The new ingredients of every matched recipe (a recipe with none resolved
+  // ends up with an empty normativ, as before).
   const recipeIds = matched.map((m) => m.recipe.item.id);
-  for (let i = 0; i < recipeIds.length; i += 100) {
-    const { error } = await sb.from('recipe_ingredients').delete().in('recipe_id', recipeIds.slice(i, i + 100));
-    if (error) throw error;
-  }
+  const next = new Map<string, IngredientAmount[]>(recipeIds.map((id) => [id, []]));
   const rows: { recipe_id: string; product_id: string; quantity: number }[] = [];
   let linked = 0;
   for (const { norm, recipe } of matched) {
@@ -144,16 +145,35 @@ export async function importNormativi(
       const pid = resolved.get(ing.name.toLowerCase());
       if (pid) {
         rows.push({ recipe_id: recipe.item.id, product_id: pid, quantity: ing.qty });
+        next.get(recipe.item.id)!.push({ product_id: pid, quantity: ing.qty });
         any = true;
       }
     }
     if (any) linked++;
   }
+
+  // Worked out against the OLD ingredients, so before they're replaced.
+  const fix = fixStock ? await planNormativStock(next) : [];
+
+  for (let i = 0; i < recipeIds.length; i += 100) {
+    const { error } = await sb.from('recipe_ingredients').delete().in('recipe_id', recipeIds.slice(i, i + 100));
+    if (error) throw error;
+  }
   for (let i = 0; i < rows.length; i += 200) {
     const { error } = await sb.from('recipe_ingredients').insert(rows.slice(i, i + 200));
     if (error) throw error;
   }
-  return { linked, newProducts };
+  // The normativi are in by now, so a re-import would find nothing to correct —
+  // say plainly what's left undone rather than a bare "Грешка".
+  try {
+    if (fix.length) await applyNormativStock(fix, 'увоз на нормативи');
+  } catch (e) {
+    throw new Error(
+      `Нормативите се увезени, но поправката на залиха не успеа целосно: ${(e as Error).message}. ` +
+        `Требаше: ${fix.map((c) => `${c.name} ${c.delta > 0 ? '+' : ''}${Number(c.delta.toFixed(3))} ${c.unit}`).join(', ')}`,
+    );
+  }
+  return { linked, newProducts, stockFixed: fix.length };
 }
 
 // ── Cenovnik (recipe prices) ────────────────────────────────────
@@ -238,6 +258,9 @@ export async function importDaily(date: string, items: DailySaleInput[], deductS
       recipe_id: it.recipeId,
       quantity: it.qty,
       is_gratis: it.gratis,
+      // A day imported without deducting took no stock; a later normativ
+      // correction must leave it alone.
+      stock_deducted: deductStock,
       notes: it.gratis ? `POS ${date} · гратис` : `POS ${date}`,
       created_at: soldAt,
     })),

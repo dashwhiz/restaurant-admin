@@ -119,7 +119,8 @@ export async function completeEvent(ev: EventRow, menu: MenuItemRow[]): Promise<
   for (const item of menu) {
     await applyRecipeStock(item.recipe_id, item.qty_per_person * guests);
   }
-  const { error } = await sb.from('events').update({ status: 'done' }).eq('id', ev.id);
+  // When stock moved, for normativ corrections (see normativ.ts).
+  const { error } = await sb.from('events').update({ status: 'done', completed_at: new Date().toISOString() }).eq('id', ev.id);
   if (error) throw error;
 }
 

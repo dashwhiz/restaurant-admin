@@ -23,6 +23,34 @@ To make reversal exact:
 - **Do not clamp at zero.** Stock is allowed to go negative — it's a real signal
   ("sold more than the system knew") and clamping makes deletes un-reversible.
 
+## When a normativ changes
+
+A sale deducts its recipe's ingredients as they are at that moment, but deleting
+the sale later reverses the recipe as it is **now**. So changing a normativ
+after sales breaks reversal unless the past deductions are corrected too.
+
+`src/lib/services/normativ.ts` works out that correction: per product,
+`−(new per portion − old per portion) × portions`, over sales (paid and gratis)
+and completed events of the changed recipes. Only portions that took stock
+**after the product's stock was last set outright** count — a stocktake (also
+one that matched the system, which is now logged), "Нулирај залиха", or a hand
+edit of Тековна залиха (logged as `Рачна измена на залиха`) — because that value
+already held the real amount. "After" compares when stock actually moved:
+`sales.inserted_at`, `events.completed_at`, `stocktake_log.inserted_at`, not the
+business-day `created_at` (yesterday's POS file is imported after this
+morning's count). Sales with `stock_deducted = false` (imported without
+"Одземи од залиха") are skipped, and editing/deleting them no longer moves
+stock either. Applied through `applyLoggedStockDeltas`, logged in
+`stock_adjustments` as `Норматив сменет: …`; Историја lists those rows with no
+amount of its own, since its sale lines already use today's recipe.
+
+- Recipe dialog: shows the correction and asks — **Зачувај и поправи залиха**
+  (the old normativ was wrong) or **Само зачувај** (the recipe changes from
+  today; old sales stay as they were and won't reverse exactly).
+- Normativi import: checkbox, on by default.
+- Known limit: rows from before 2026-10-19 have `inserted_at` backfilled from
+  `created_at` (their real save time wasn't recorded).
+
 ## Where it lives
 
 All stock math goes through one service, `src/lib/services/stock.ts`

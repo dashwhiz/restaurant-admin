@@ -41,6 +41,7 @@ export default function ImportsPage() {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [doProducts, setDoProducts] = useState(true);
   const [doRecipes, setDoRecipes] = useState(true);
+  const [fixStock, setFixStock] = useState(true);
   const [busy, setBusy] = useState(false);
 
   async function onFiles(fileList: FileList) {
@@ -103,8 +104,13 @@ export default function ImportsPage() {
     setBusy(true);
     try {
       const [recs, prods] = await Promise.all([listRecipes(), listProducts()]);
-      const r = await importNormativi(parsed, recs, prods);
-      toast(`Поврзани ${r.linked} рецепти${r.newProducts ? `, создадени ${r.newProducts} нови производи` : ''}`, 'success');
+      const r = await importNormativi(parsed, recs, prods, fixStock);
+      toast(
+        `Поврзани ${r.linked} рецепти` +
+          (r.newProducts ? `, создадени ${r.newProducts} нови производи` : '') +
+          (r.stockFixed ? `, поправена залиха на ${r.stockFixed} производи (види Историја)` : ''),
+        'success',
+      );
       reset();
     } catch (e) {
       toast('Грешка: ' + (e as Error).message, 'error');
@@ -176,6 +182,14 @@ export default function ImportsPage() {
               <p className="mb-4 text-sm text-muted">
                 {loaded.parsed.length} рецепти во фајлот. Ќе се спојат со постојните рецепти по име и ќе се
                 постават нивните состојки.
+              </p>
+              <label className="mb-1 flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={fixStock} onChange={(e) => setFixStock(e.target.checked)} />
+                Поправи ја залихата за веќе продадените порции
+              </label>
+              <p className="mb-4 text-xs text-muted">
+                Ако нормативот на рецепт се смени, залихата се пресметува одново за неговите продажби после
+                последниот попис на секој производ. Секоја промена се гледа во Историја на производот.
               </p>
               <button className="btn-primary" disabled={busy} onClick={() => confirmNormativi(loaded.parsed)}>
                 {busy ? 'Увезување…' : 'Поврзи состојки'}

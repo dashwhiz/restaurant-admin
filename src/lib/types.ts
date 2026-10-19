@@ -66,7 +66,12 @@ export interface Sale {
   notes: string | null;
   /** Given away (POS GRATIS/Pansion): deducts stock and counts as cost, but brings no revenue. */
   is_gratis: boolean;
+  /** False for a POS day imported without "Одземи од залиха": it never took stock. */
+  stock_deducted: boolean;
+  /** Business day the sale belongs to. */
   created_at: string;
+  /** When the row was saved, i.e. when it actually took stock. */
+  inserted_at: string;
 }
 
 export interface WasteLog {
@@ -83,7 +88,10 @@ export interface StocktakeLog {
   system_qty: number;
   counted_qty: number;
   difference: number;
+  /** The day counted (may be backdated). */
   created_at: string;
+  /** When it was saved, i.e. when stock was set to the count. */
+  inserted_at: string;
 }
 
 // A stock change that has no other record of its own (e.g. "Нулирај залиха"),
@@ -107,6 +115,8 @@ export interface EventRow {
   status: 'planned' | 'done' | string;
   notes: string | null;
   created_at: string;
+  /** When it was marked done and its stock deducted. */
+  completed_at: string | null;
 }
 
 export interface EventMenuItem {

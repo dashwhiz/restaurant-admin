@@ -39,6 +39,52 @@ export async function applyRecipeStock(recipeId: string, multiplier: number): Pr
 }
 
 /**
+ * Apply several signed deltas at once and log each in stock_adjustments with
+ * `reason`, so the product's Историја shows what changed and why. Stock is
+ * read fresh right before writing, like `applyStockDelta`.
+ */
+export async function applyLoggedStockDeltas(
+  deltas: { productId: string; delta: number }[],
+  reason: string,
+): Promise<void> {
+  const byId = new Map<string, number>();
+  for (const d of deltas) if (d.delta) byId.set(d.productId, (byId.get(d.productId) ?? 0) + d.delta);
+  const ids = [...byId.keys()];
+  if (ids.length === 0) return;
+  const sb = getSupabase();
+  // Only products whose update really went through are logged, and they are
+  // logged even if another one failed — so Историја always says what changed.
+  const log: { product_id: string; previous_qty: number; new_qty: number; reason: string }[] = [];
+  let failed: unknown = null;
+  try {
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data, error } = await sb.from('products').select('id, current_stock').in('id', ids.slice(i, i + 100));
+      if (error) throw error;
+      // allSettled, not all: every update in the batch has to finish (and be
+      // logged) before deciding what happened.
+      const res = await Promise.allSettled(
+        (data ?? []).map(async (p) => {
+          const prev = Number(p.current_stock) || 0;
+          const next = prev + (byId.get(p.id as string) as number);
+          const { error: upErr } = await sb.from('products').update({ current_stock: next }).eq('id', p.id);
+          if (upErr) throw upErr;
+          log.push({ product_id: p.id as string, previous_qty: prev, new_qty: next, reason });
+        }),
+      );
+      const rejected = res.find((r) => r.status === 'rejected');
+      if (rejected) throw (rejected as PromiseRejectedResult).reason;
+    }
+  } catch (e) {
+    failed = e;
+  }
+  const { error: logErr } = log.length ? await sb.from('stock_adjustments').insert(log) : { error: null };
+  if (failed || logErr) {
+    const why = ((failed ?? logErr) as Error).message;
+    throw new Error(`залихата е сменета за ${log.length} од ${ids.length} производи (${why}) — провери ја Историја`);
+  }
+}
+
+/**
  * Set every product's stock to 0. Used from Settings after history has been
  * cleared, since clearing removes rows without reversing their stock effect.
  * Each zeroed product gets a stock_adjustments row so its history shows the

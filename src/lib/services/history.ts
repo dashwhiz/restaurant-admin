@@ -6,6 +6,7 @@
 // since, old lines show the new amounts.
 import { fetchAllRows } from './paged';
 import { fmtMKD } from '@/lib/format';
+import { NORMATIV_REASON } from './normativ';
 
 export type HistoryKind = 'delivery' | 'sale' | 'waste' | 'stocktake' | 'event' | 'reset';
 
@@ -110,12 +111,19 @@ export async function productHistory(productId: string, since: string | null): P
   }
 
   for (const r of resets) {
+    const change = (Number(r.new_qty) || 0) - (Number(r.previous_qty) || 0);
+    // A normativ correction re-prices past sales — and the sale lines below are
+    // already shown with today's recipe. Counting it again would double it, so
+    // it's listed for the record with no amount of its own.
+    const normativ = (r.reason || '').startsWith(NORMATIV_REASON);
     entries.push({
       id: `reset-${r.id}`,
       kind: 'reset',
       at: r.created_at,
-      qty: (Number(r.new_qty) || 0) - (Number(r.previous_qty) || 0),
-      text: `${r.reason || 'Рачна промена'} (било ${round(Number(r.previous_qty) || 0)})`,
+      qty: normativ ? 0 : change,
+      text: normativ
+        ? `${r.reason} (залиха ${change > 0 ? '+' : ''}${round(change)}; продажбите се прикажани по новиот норматив)`
+        : `${r.reason || 'Рачна промена'} (било ${round(Number(r.previous_qty) || 0)})`,
     });
   }
 

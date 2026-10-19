@@ -31,13 +31,13 @@ nullable, null → guessed by category; added 2026-10-18), `price_updated_at`,
 `supplier`, `notes`, `created_at`.
 
 ### `sales` — items sold
-`id`, `recipe_id`, `quantity` (numeric — dishes sold by weight, e.g. 0.4 kg; was integer until 2026-10-18), `notes`, `is_gratis` (boolean, default false — POS GRATIS/Pansion portions: deduct stock and count as cost, no revenue; added 2026-10-19), `created_at`.
+`id`, `recipe_id`, `quantity` (numeric — dishes sold by weight, e.g. 0.4 kg; was integer until 2026-10-18), `notes`, `is_gratis` (boolean, default false — POS GRATIS/Pansion portions: deduct stock and count as cost, no revenue; added 2026-10-19), `stock_deducted` (boolean, default true — false when a POS day was imported without deducting), `created_at` (business day), `inserted_at` (when saved = when stock moved; added 2026-10-19).
 
 ### `waste_log` — waste/spoilage out
 `id`, `product_id`, `quantity`, `reason`, `created_at`.
 
 ### `stocktake_log` — physical counts
-`id`, `product_id`, `system_qty`, `counted_qty`, `difference`, `created_at`.
+`id`, `product_id`, `system_qty`, `counted_qty`, `difference`, `created_at` (day counted, may be backdated), `inserted_at` (when stock was set; added 2026-10-19). Counts equal to the system are logged too since 2026-10-19.
 
 ### `stock_adjustments` — stock changes with no other record
 `id`, `product_id`, `previous_qty`, `new_qty`, `reason`, `created_at`.
@@ -46,7 +46,7 @@ history can show resets. Added 2026-10-18; cascade-deletes with the product.
 
 ### `events` — catering / special orders
 `id`, `name`, `type`, `event_date`, `guest_count`, `price_per_person`,
-`status` (`planned`/`done`), `notes`, `created_at`.
+`status` (`planned`/`done`), `notes`, `created_at`, `completed_at` (when marked done; added 2026-10-19).
 
 ### `event_menu_items`
 `id`, `event_id`, `recipe_id`, `course`, `qty_per_person`.
