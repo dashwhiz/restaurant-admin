@@ -134,12 +134,13 @@ export function bestMatch<T extends Named>(
   return ambiguous ? null : { item: best, score: bestScore };
 }
 
-/** A special order shows up as an article whose name contains this marker. */
+/**
+ * A special order shows up as an article whose name contains this marker. The
+ * till also abbreviates it — "SPEC.NARA^KA-kujna" / "-šank" decodes to
+ * "Спец.нарачка-кујна" — which the full-word check missed, so the order was
+ * imported as an ordinary 0-price sale instead of being offered as an event.
+ */
 export function isSpecialOrder(name: string): boolean {
   const n = (name || '').toLowerCase();
-  return (
-    n.includes('специјална нарачка') ||
-    n.includes('специјална нарацка') ||
-    n.includes('specijalna nara')
-  );
+  return /спец(ијална\s+|\.\s*)нара[чц]ка|spec(ijalna\s+|\.\s*)nara/.test(n);
 }
