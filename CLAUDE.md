@@ -22,9 +22,10 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
 - **17.10 corrected too** (file back in Documents, total 99421 ден = till):
   gratis Скопско 0.5 3; Тиквици Похувани +12 (old parser dropped a line ending
   in a form-feed page break). Stock deducted.
-- **Open:** on 17.10 the 10 Пелистерка 0.750 are saved as Кнјаз Милос (25
-  instead of 15), though šifra 240150 maps to Пелистерка — asked the owner
-  whether that was deliberate. Not clicked through (needs login).
+- **Deliberate, leave it:** on 17.10 the 10 Пелистерка 0.750 are saved as
+  Кнјаз Милос (25 instead of 15). Owner confirmed it was on purpose — don't
+  "fix" it in a future reconciliation.
+- **Status:** both days now match the till. Not clicked through (needs login).
 
 ### 2026-10-18 — End of day summary
 
