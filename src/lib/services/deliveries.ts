@@ -33,29 +33,35 @@ export async function createDelivery(input: DeliveryInput): Promise<void> {
   const { error } = await getSupabase().from('purchases').insert(input);
   if (error) throw error;
   await applyStockDelta(input.product_id, input.quantity);
-  await refreshVatRate(input.product_id);
+  await refreshFromLatestDelivery(input.product_id);
 }
 
 /**
- * Set a product's VAT rate to that of its latest delivery that has one (0% is
- * read as "not filled in", not as a real rate). Best-effort on purpose: it runs
- * after the delivery and stock are saved, and throwing here would invite a
- * second click that saves the delivery — and adds the stock — twice.
+ * Set a product's VAT rate and cost to those of its latest delivery that has
+ * them (0 is read as "not filled in", not as a real rate or price). Without the
+ * cost, a hand-entered delivery left the product at 0 ден and every recipe using
+ * it looked free (Лепинја). Best-effort on purpose: it runs after the delivery
+ * and stock are saved, and throwing here would invite a second click that
+ * saves the delivery — and adds the stock — twice.
  */
-export async function refreshVatRate(productId: string): Promise<void> {
+export async function refreshFromLatestDelivery(productId: string): Promise<void> {
   try {
     const sb = getSupabase();
-    const { data } = await sb
-      .from('purchases')
-      .select('ddv_rate')
-      .eq('product_id', productId)
-      .gt('ddv_rate', 0)
-      .order('created_at', { ascending: false })
-      .limit(1);
-    const rate = data?.[0]?.ddv_rate;
-    if (rate != null) await sb.from('products').update({ ddv_rate: rate }).eq('id', productId);
+    const latest = (column: 'ddv_rate' | 'cost_per_unit') =>
+      sb
+        .from('purchases')
+        .select(column)
+        .eq('product_id', productId)
+        .gt(column, 0)
+        .order('created_at', { ascending: false })
+        .limit(1);
+    const [rateRes, costRes] = await Promise.all([latest('ddv_rate'), latest('cost_per_unit')]);
+    const rate = (rateRes.data?.[0] as { ddv_rate?: number } | undefined)?.ddv_rate;
+    const cost = (costRes.data?.[0] as { cost_per_unit?: number } | undefined)?.cost_per_unit;
+    const patch = { ...(rate != null ? { ddv_rate: rate } : {}), ...(cost != null ? { cost_per_unit: cost } : {}) };
+    if (Object.keys(patch).length) await sb.from('products').update(patch).eq('id', productId);
   } catch {
-    // The rate just stays as it was; the next delivery corrects it.
+    // The product just keeps its old values; the next delivery corrects them.
   }
 }
 
@@ -71,7 +77,7 @@ export async function updateDelivery(id: string, input: DeliveryInput): Promise<
   const { error } = await sb.from('purchases').update(input).eq('id', id);
   if (error) throw error;
   await applyStockDelta(old.product_id as string, input.quantity - (Number(old.quantity) || 0));
-  await refreshVatRate(old.product_id as string);
+  await refreshFromLatestDelivery(old.product_id as string);
 }
 
 export async function deleteDelivery(id: string): Promise<void> {
@@ -85,5 +91,5 @@ export async function deleteDelivery(id: string): Promise<void> {
   const { error } = await sb.from('purchases').delete().eq('id', id);
   if (error) throw error;
   await applyStockDelta(old.product_id as string, -(Number(old.quantity) || 0));
-  await refreshVatRate(old.product_id as string);
+  await refreshFromLatestDelivery(old.product_id as string);
 }

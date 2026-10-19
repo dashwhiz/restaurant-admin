@@ -6,7 +6,9 @@ import { useToast } from '@/components/ui/Toast';
 import { createDelivery, updateDelivery, type DeliveryRow } from '@/lib/services/deliveries';
 import type { Product } from '@/lib/types';
 import { num } from '@/lib/format';
-import { productVatRate } from '@/lib/vat';
+import { addVat, productVatRate, removeVat, VAT_RATES } from '@/lib/vat';
+
+const money = (n: number) => String(Math.round(n * 100) / 100);
 
 export function DeliveryDialog({
   open,
@@ -30,6 +32,22 @@ export function DeliveryDialog({
     setForm(blank(delivery));
   }
   const set = (p: Partial<ReturnType<typeof blank>>) => setForm((f) => ({ ...f, ...p }));
+
+  // The two prices follow each other: typing one fills in the other. Changing
+  // the rate keeps the price WITH VAT (what the invoice says) and recomputes the
+  // one without — otherwise the two drift apart (Лепинја: 10.56 vs 12 at 5%).
+  const setNet = (v: string) =>
+    set({ cost_per_unit: v, price_with_ddv: v === '' ? '' : money(addVat(num(v), num(form.ddv_rate))) });
+  const setGross = (v: string) =>
+    set({ price_with_ddv: v, cost_per_unit: v === '' ? '' : money(removeVat(num(v), num(form.ddv_rate))) });
+  const setRate = (r: string) =>
+    setForm((f) =>
+      f.price_with_ddv !== ''
+        ? { ...f, ddv_rate: r, cost_per_unit: money(removeVat(num(f.price_with_ddv), num(r))) }
+        : f.cost_per_unit !== ''
+          ? { ...f, ddv_rate: r, price_with_ddv: money(addVat(num(f.cost_per_unit), num(r))) }
+          : { ...f, ddv_rate: r },
+    );
 
   async function save() {
     if (!form.product_id) return toast('Избери производ', 'error');
@@ -79,7 +97,8 @@ export function DeliveryDialog({
             // A new delivery starts at the product's known (or guessed) rate.
             onChange={(e) => {
               const p = products.find((x) => x.id === e.target.value);
-              set(!delivery && p ? { product_id: e.target.value, ddv_rate: String(productVatRate(p)) } : { product_id: e.target.value });
+              set({ product_id: e.target.value });
+              if (!delivery && p) setRate(String(productVatRate(p)));
             }}
           >
             <option value="">Избери…</option>
@@ -94,17 +113,17 @@ export function DeliveryDialog({
         </div>
         <div>
           <label className="label">Цена/ед. (без ДДВ)</label>
-          <input className="input" type="number" step="0.01" value={form.cost_per_unit} onChange={(e) => set({ cost_per_unit: e.target.value })} />
+          <input className="input" type="number" step="0.01" value={form.cost_per_unit} onChange={(e) => setNet(e.target.value)} />
         </div>
         <div>
           <label className="label">ДДВ %</label>
-          <select className="input" value={form.ddv_rate} onChange={(e) => set({ ddv_rate: e.target.value })}>
-            {['0', '5', '10', '18'].map((r) => <option key={r} value={r}>{r}%</option>)}
+          <select className="input" value={form.ddv_rate} onChange={(e) => setRate(e.target.value)}>
+            {VAT_RATES.map((r) => <option key={r} value={String(r)}>{r}%</option>)}
           </select>
         </div>
         <div>
           <label className="label">Цена со ДДВ</label>
-          <input className="input" type="number" step="0.01" value={form.price_with_ddv} onChange={(e) => set({ price_with_ddv: e.target.value })} />
+          <input className="input" type="number" step="0.01" value={form.price_with_ddv} onChange={(e) => setGross(e.target.value)} />
         </div>
         <div>
           <label className="label">Добавувач</label>
