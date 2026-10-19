@@ -20,6 +20,9 @@ What was done today (details in the entries below):
   imports); both Кртина back to 0. Owner confirmed it shows.
 - **Special orders:** abbreviated "Спец.нарачка-кујна/шанк" now recognised;
   18.10 order moved from a sale to an event in Настани.
+- **Delivery form:** prices with/without VAT now fill each other in and follow
+  the VAT % (closes the 2026-10-18 open item); a hand-entered delivery now sets
+  the product's cost. Лепинја delivery fixed to 11.43 / 12.00 at 5%.
 
 Open:
 - **Normativ change → auto stock correction:** owner wants it. Proposal sent
