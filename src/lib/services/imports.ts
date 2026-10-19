@@ -182,6 +182,8 @@ export async function importCenovnik(parsed: ParsedPrice[], dbRecipes: Recipe[])
 export interface DailySaleInput {
   recipeId: string;
   qty: number;
+  /** Free portions (GRATIS/Pansion): a separate `is_gratis` sale — stock and cost, no revenue. */
+  gratis: number;
 }
 
 /**
@@ -214,7 +216,16 @@ export async function importDaily(date: string, items: DailySaleInput[], deductS
 
   // Kept to 3 decimals, never rounded to whole numbers: dishes sold by weight
   // ("Јагнешко печење 0.400 KGR") used to become 0 or 1 and deduct wrong stock.
-  const rounded = items.map((it) => ({ recipeId: it.recipeId, qty: Math.round(it.qty * 1000) / 1000 }));
+  // Paid and free portions are separate rows, so deleting either one later
+  // reverses exactly what it deducted.
+  const r3 = (n: number) => Math.round(n * 1000) / 1000;
+  const rounded = items
+    .flatMap((it) => [
+      { recipeId: it.recipeId, qty: r3(it.qty), gratis: false },
+      { recipeId: it.recipeId, qty: r3(it.gratis), gratis: true },
+    ])
+    .filter((it) => it.qty > 0);
+  if (rounded.length === 0) return 0;
 
   // Stamp the sale with the day it was actually sold, not the moment of import.
   // Without this, importing a backlog puts every day's takings on today, and
@@ -226,7 +237,8 @@ export async function importDaily(date: string, items: DailySaleInput[], deductS
     rounded.map((it) => ({
       recipe_id: it.recipeId,
       quantity: it.qty,
-      notes: `POS ${date}`,
+      is_gratis: it.gratis,
+      notes: it.gratis ? `POS ${date} · гратис` : `POS ${date}`,
       created_at: soldAt,
     })),
   );

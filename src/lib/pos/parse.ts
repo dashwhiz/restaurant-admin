@@ -26,7 +26,8 @@ export interface ParsedPrice {
 }
 export interface ParsedDaily {
   date: string;
-  items: { sifra: string; name: string; unit: string; qty: number; amount: number }[];
+  /** qty = paid portions; gratis = free ones (GRATIS + Pansion), which still leave stock. */
+  items: { sifra: string; name: string; unit: string; qty: number; amount: number; gratis: number }[];
 }
 
 const UNIT_MAP: Record<string, string> = {
@@ -302,12 +303,14 @@ export function parseCenovnik(text: string): ParsedPrice[] {
   return parsed;
 }
 
+// Column layout of the daily report, as [start, end) character offsets. The
+// file's own "--- ------ ---…" ruler line is used when present; this copy of it
+// is only a fallback.
+const DAILY_COLS: [number, number][] = [
+  [0, 3], [4, 10], [11, 41], [42, 45], [46, 56], [57, 69], [70, 80], [81, 93], [94, 100], [101, 113], [114, 124], [125, 137],
+];
+
 export function parseDaily(text: string): ParsedDaily {
-  const DEN_RE = /^DEN\s+(\d{6})\s+(.+?)\s+(KOM|KGR|POR|LIT|KIT|NIZ)\s+(.+)$/;
-  // Some articles (e.g. "BRUSKETI") carry no unit at all. Without this they
-  // vanished from the import with no warning. The name ends at the wide column
-  // gap — a single space can't be the cut, or "PIVO 0.5" would lose its size.
-  const DEN_NO_UNIT_RE = /^DEN\s+(\d{6})\s+(.+?)\s{2,}(\d+\.\d+\s+.+)$/;
   const lines = text.split(/\r?\n/);
   let date = new Date().toISOString().slice(0, 10);
   for (const line of lines.slice(0, 15)) {
@@ -317,28 +320,38 @@ export function parseDaily(text: string): ParsedDaily {
       break;
     }
   }
+
+  // Read by column position, not by picking numbers out of the line. The
+  // GRATIS and Pansion quantities are printed without decimals ("11", not
+  // "11.000") and any column can be blank, so "the first two decimals" missed
+  // every free portion and stock came out too high. Blank columns are also why
+  // articles with no unit (e.g. "BRUSKETI") need nothing special here.
+  const ruler = lines.find((l) => /^-{3} -{6} -+/.test(l));
+  const cols = ruler ? [...ruler.matchAll(/-+/g)].map((m): [number, number] => [m.index, m.index + m[0].length]) : DAILY_COLS;
+  if (cols.length < 12) return { date, items: [] };
+  const num = (line: string, col: number) => parseFloat(line.slice(cols[col][0], cols[col][1])) || 0;
+
   const seen: Record<string, ParsedDaily['items'][number]> = {};
   for (const line of lines) {
-    const withUnit = DEN_RE.exec(line);
-    const noUnit = withUnit ? null : DEN_NO_UNIT_RE.exec(line);
-    if (!withUnit && !noUnit) continue;
-    const sifra = (withUnit ?? noUnit)![1];
+    if (!line.startsWith('DEN ')) continue;
+    const sifra = line.slice(cols[1][0], cols[1][1]).trim();
+    if (!/^\d{6}$/.test(sifra)) continue;
     // Don't strip a trailing bottle/pour size (e.g. "Скопско 0.33" vs "Скопско
     // 0.5") — it's the part of the name that distinguishes otherwise-identical
-    // recipes, and the recipe list keeps it too. Stripping it collapsed both
-    // sizes to the same bare name and made them fail to match anything.
-    const name = cleanPOSName((withUnit ?? noUnit)![2].trim());
-    const unit = withUnit ? UNIT_MAP[withUnit[3]] || 'piece' : 'piece';
-    const rest = withUnit ? withUnit[4] : noUnit![3];
-    const nums = (rest.match(/[\d]+\.[\d]+/g) || []).map(Number);
-    if (nums.length < 2) continue;
-    const qty = nums[0];
-    const amount = nums[1];
+    // recipes, and the recipe list keeps it too.
+    const name = cleanPOSName(line.slice(cols[2][0], cols[2][1]).trim());
+    const unit = UNIT_MAP[line.slice(cols[3][0], cols[3][1]).trim()] || 'piece';
+    const qty = num(line, 4);
+    const amount = num(line, 5);
+    // Pansion (board) portions leave the kitchen unpaid too, so they count as gratis.
+    const gratis = num(line, 6) + num(line, 8);
+    if (!qty && !gratis) continue;
     if (seen[sifra]) {
       seen[sifra].qty += qty;
       seen[sifra].amount += amount;
+      seen[sifra].gratis += gratis;
     } else {
-      seen[sifra] = { sifra, name, unit, qty, amount };
+      seen[sifra] = { sifra, name, unit, qty, amount, gratis };
     }
   }
   return { date, items: Object.values(seen) };

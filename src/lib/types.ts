@@ -64,6 +64,8 @@ export interface Sale {
   recipe_id: string;
   quantity: number;
   notes: string | null;
+  /** Given away (POS GRATIS/Pansion): deducts stock and counts as cost, but brings no revenue. */
+  is_gratis: boolean;
   created_at: string;
 }
 

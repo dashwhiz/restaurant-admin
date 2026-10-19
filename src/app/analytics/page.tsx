@@ -227,7 +227,7 @@ export default function AnalyticsPage() {
             <Kpi
               label={`Кост на продадено ${vat.label}`}
               value={fmtMKD(k.cogs)}
-              sub={`Food cost ${pct(k.foodCostPct)}`}
+              sub={`Food cost ${pct(k.foodCostPct)}${k.gratisCost > 0 ? ` · гратис ${fmtMKD(k.gratisCost)}` : ''}`}
               tone={
                 k.foodCostPct !== null && k.foodCostPct > FOOD_COST_TARGET
                   ? 'bad'

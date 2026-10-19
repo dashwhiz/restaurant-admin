@@ -114,7 +114,7 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
       await saveMappings(entries);
       const items: DailySaleInput[] = parsed.items
         .filter((i) => resolutions[i.sifra] && resolutions[i.sifra] !== SKIP)
-        .map((i) => ({ recipeId: resolutions[i.sifra], qty: i.qty }));
+        .map((i) => ({ recipeId: resolutions[i.sifra], qty: i.qty, gratis: i.gratis }));
       const n = await importDaily(parsed.date, items, deduct);
       toast(`Увезени ${n} продажби за ${fmtDate(parsed.date)}`, 'success');
       onDone();
@@ -158,6 +158,7 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
               <tr>
                 <th className="p-2">Ставка</th>
                 <th className="p-2 text-right">Кол.</th>
+                <th className="p-2 text-right">Гратис</th>
                 <th className="p-2">Рецепт</th>
               </tr>
             </thead>
@@ -172,6 +173,7 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
                       {isSpecialOrder(it.name) && <Badge tone="purple">Настан</Badge>}
                     </td>
                     <td className="p-2 text-right">{it.qty}</td>
+                    <td className="p-2 text-right text-muted">{it.gratis || ''}</td>
                     <td className="p-2">
                       <RecipePicker
                         value={val}

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
+import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { IconPlus, IconEdit, IconTrash, IconChevron } from '@/components/ui/Icons';
 import { fmtMKD, fmtDate, departmentOf } from '@/lib/format';
@@ -60,7 +61,7 @@ export default function SalesPage() {
       оддел: departmentOf(s.recipe?.category),
       количина: s.quantity ?? 0,
       цена: s.recipe?.selling_price ?? 0,
-      износ: (s.quantity || 0) * (s.recipe?.selling_price ?? 0),
+      износ: s.is_gratis ? 0 : (s.quantity || 0) * (s.recipe?.selling_price ?? 0),
       белешка: s.notes ?? '',
     }));
   }
@@ -83,7 +84,7 @@ export default function SalesPage() {
       if (!byDay.has(day)) byDay.set(day, { day, bar: [], kitchen: [], revenue: 0, count: 0 });
       const g = byDay.get(day)!;
       (departmentOf(s.recipe?.category) === 'Бар' ? g.bar : g.kitchen).push(s);
-      g.revenue += s.recipe ? vat.price((s.quantity || 0) * (s.recipe.selling_price ?? 0), recipeVatRate(s.recipe)) : 0;
+      g.revenue += s.recipe && !s.is_gratis ? vat.price((s.quantity || 0) * (s.recipe.selling_price ?? 0), recipeVatRate(s.recipe)) : 0;
       g.count += 1;
     }
     return [...byDay.values()];
@@ -111,11 +112,12 @@ export default function SalesPage() {
   const row = (s: SaleRow) => {
     // The daily import stamps "POS <date>" — redundant here since the day is in
     // the header. Hide it, but keep any real note a manual sale carries.
-    const note = s.notes && !/^POS \d{4}-\d{2}-\d{2}$/.test(s.notes) ? s.notes : null;
+    const note = s.notes && !/^POS \d{4}-\d{2}-\d{2}( · гратис)?$/.test(s.notes) ? s.notes : null;
     return (
     <div key={s.id} className="flex items-center gap-2 border-b border-border/60 py-2 text-sm last:border-0">
       <div className="min-w-0 flex-1">
         <span className="font-semibold">{s.recipe?.name ?? '?'}</span>
+        {s.is_gratis && <> <Badge tone="yellow">Гратис</Badge></>}
         {note && <span className="text-muted"> · {note}</span>}
       </div>
       <span className="whitespace-nowrap font-medium">{s.quantity}×</span>

@@ -29,6 +29,8 @@ export interface Kpis {
   revenueFromPrices: number;
   cogs: number;
   wasteCost: number;
+  /** Cost of portions given away (POS gratis) — already included in `cogs`. */
+  gratisCost: number;
   /** Always without VAT — VAT is not earnings. */
   grossProfit: number;
   /** % figures are always without VAT on both sides. */
@@ -210,6 +212,8 @@ function compute(rows: Rows, days: number, from: string, withVat: boolean): Anal
 
   const inPeriod = (iso: string) => iso >= from;
   const periodSales = sales.filter((s) => inPeriod(s.created_at));
+  // Gratis portions cost ingredients like any sale but bring in no money.
+  const paidQty = (s: Sale) => (s.is_gratis ? 0 : s.quantity);
 
   // ── Revenue: real till amounts where a POS import exists, prices elsewhere ──
   const importById = new Map(posImports.map((i) => [i.id, i]));
@@ -228,7 +232,7 @@ function compute(rows: Rows, days: number, from: string, withVat: boolean): Anal
   let revenueFromPrices = 0;
   for (const s of periodSales) {
     if (posDaysInPeriod.has(s.created_at.slice(0, 10))) continue; // already counted at the till
-    const gross = s.quantity * (recipeById.get(s.recipe_id)?.selling_price ?? 0);
+    const gross = paidQty(s) * (recipeById.get(s.recipe_id)?.selling_price ?? 0);
     revenueFromPrices += showPrice(gross, recipeRate(s.recipe_id));
     revenueNet += removeVat(gross, recipeRate(s.recipe_id));
   }
@@ -249,11 +253,15 @@ function compute(rows: Rows, days: number, from: string, withVat: boolean): Anal
     revenueFromPrices,
     cogs: sumSales(recipeCostShown),
     wasteCost: sumWaste(productCostShown),
+    gratisCost: periodSales.reduce(
+      (sum, s) => sum + (s.is_gratis ? s.quantity * (recipeCostShown.get(s.recipe_id) ?? 0) : 0),
+      0,
+    ),
     grossProfit,
     marginPct: revenueNet > 0 ? (grossProfit / revenueNet) * 100 : null,
     foodCostPct: revenueNet > 0 ? (cogsNet / revenueNet) * 100 : null,
     wastePctOfRevenue: revenueNet > 0 ? (wasteNet / revenueNet) * 100 : null,
-    unitsSold: periodSales.reduce((s, x) => s + x.quantity, 0),
+    unitsSold: periodSales.reduce((s, x) => s + paidQty(x), 0),
     uncostedUnits: periodSales.reduce(
       (s, x) => s + ((recipeCost.get(x.recipe_id) ?? 0) > 0 ? 0 : x.quantity),
       0,
@@ -283,7 +291,7 @@ function compute(rows: Rows, days: number, from: string, withVat: boolean): Anal
     const idx = monthIndex.get(localMonthKey(new Date(s.created_at)));
     if (idx !== undefined) {
       months[idx].revenue += showPrice(
-        s.quantity * (recipeById.get(s.recipe_id)?.selling_price ?? 0),
+        paidQty(s) * (recipeById.get(s.recipe_id)?.selling_price ?? 0),
         recipeRate(s.recipe_id),
       );
     }
@@ -293,7 +301,7 @@ function compute(rows: Rows, days: number, from: string, withVat: boolean): Anal
   const stats = new Map<string, RecipeStat>();
   for (const s of periodSales) {
     const recipe = recipeById.get(s.recipe_id);
-    if (!recipe) continue;
+    if (!recipe || s.is_gratis) continue; // ranks what sells, not what's given away
     const stat = stats.get(s.recipe_id) ?? { id: s.recipe_id, name: recipe.name, qty: 0, revenue: 0, revenueNet: 0 };
     const gross = s.quantity * (recipe.selling_price ?? 0);
     stat.qty += s.quantity;

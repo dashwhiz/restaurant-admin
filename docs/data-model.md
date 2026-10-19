@@ -31,7 +31,7 @@ nullable, null → guessed by category; added 2026-10-18), `price_updated_at`,
 `supplier`, `notes`, `created_at`.
 
 ### `sales` — items sold
-`id`, `recipe_id`, `quantity` (numeric — dishes sold by weight, e.g. 0.4 kg; was integer until 2026-10-18), `notes`, `created_at`.
+`id`, `recipe_id`, `quantity` (numeric — dishes sold by weight, e.g. 0.4 kg; was integer until 2026-10-18), `notes`, `is_gratis` (boolean, default false — POS GRATIS/Pansion portions: deduct stock and count as cost, no revenue; added 2026-10-19), `created_at`.
 
 ### `waste_log` — waste/spoilage out
 `id`, `product_id`, `quantity`, `reason`, `created_at`.
