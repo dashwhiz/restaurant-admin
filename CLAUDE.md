@@ -4,6 +4,20 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-19 — Abbreviated special orders
+
+- **Bug:** the till writes "SPEC.NARA^KA-kujna" (→ "Спец.нарачка-кујна");
+  `isSpecialOrder` only knew the full "специјална нарачка", so on 18.10 it was
+  imported as a sale of a 0-price, no-normativ recipe and no event was offered.
+- **Fix:** `isSpecialOrder` (`src/lib/pos/match.ts`) also matches "спец." /
+  "spec." forms; "Специјалитет Лира" still doesn't match.
+- **DB:** 18.10 sale deleted (no stock/revenue effect), event "Спец.нарачка-
+  кујна" 18.10 created (planned, 1 × 9650), šifra 609999 mapping → skip.
+  Owner fills its menu in Настани; stock moves when it's completed.
+- **Pending owner answer:** auto-correct stock when a normativ changes
+  (proposed: preview + confirm, only sales after each product's last count;
+  same for normativi import). Not started.
+
 ### 2026-10-19 — Мелено Месо stock
 
 - **Cause:** Плескавица / Шарска Плескавица normativ was changed to
