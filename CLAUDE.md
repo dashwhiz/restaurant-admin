@@ -49,6 +49,13 @@ What was done today (details in the entries below):
 - **Delivery form:** prices with/without VAT now fill each other in and follow
   the VAT % (closes the 2026-10-18 open item); a hand-entered delivery now sets
   the product's cost. Лепинја delivery fixed to 11.43 / 12.00 at 5%.
+- **Normativ change → stock:** changing a recipe's normativ (dialog or
+  normativi import) now corrects stock already taken by past sales/events
+  after each product's last count, with a preview and a "Само зачувај" option.
+  Full review + re-review done. New DB columns: `sales.inserted_at`,
+  `sales.stock_deducted`, `stocktake_log.inserted_at`, `events.completed_at`.
+  Side fixes: equal counts and hand stock edits are logged; the product form no
+  longer resends a stale stock value.
 
 Open:
 - **Normativ change → auto stock correction:** done (see entry above); owner
