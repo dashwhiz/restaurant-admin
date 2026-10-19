@@ -8,9 +8,12 @@ export interface StocktakeEntry {
 }
 
 /**
- * Log each non-zero difference and set current_stock to the counted amount.
+ * Log each count and set current_stock to the counted amount. A count that
+ * matches the system is logged too: it's still a confirmed real amount, which
+ * a later normativ correction must not move (see normativ.ts).
  * `countedOn` (YYYY-MM-DD) dates the log rows; omit it to stamp the current
- * time. Only the log is dated — stock is always set to the count right away.
+ * time. Only the log is dated — stock is always set to the count right away,
+ * and `inserted_at` (DB default) records that moment.
  */
 export async function submitStocktake(entries: StocktakeEntry[], countedOn?: string): Promise<number> {
   const sb = getSupabase();
@@ -19,7 +22,6 @@ export async function submitStocktake(entries: StocktakeEntry[], countedOn?: str
   let updated = 0;
   for (const e of entries) {
     const diff = e.counted - e.system_qty;
-    if (diff === 0) continue;
     const { error: logErr } = await sb.from('stocktake_log').insert({
       product_id: e.product_id,
       system_qty: e.system_qty,

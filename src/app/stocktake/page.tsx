@@ -70,9 +70,9 @@ export default function StocktakePage() {
     const entries: StocktakeEntry[] = entered
       .map(([id, v]) => {
         const p = products.find((x) => x.id === id)!;
+        // A count equal to the system is kept: it confirms the real amount.
         return { product_id: id, system_qty: p.current_stock, counted: num(v) };
-      })
-      .filter((e) => e.counted !== e.system_qty);
+      });
     if (!entries.length && !minChanges.length) return toast('Нема промени за зачувување', 'info');
     const backdated = countDate && countDate !== today;
     const when = backdated ? ` со датум ${countDate.split('-').reverse().join('.')}` : '';
