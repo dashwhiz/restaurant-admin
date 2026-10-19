@@ -28,8 +28,22 @@ Open:
 - **Event 18.10 "Спец.нарачка-кујна":** owner fills in the menu, then completes it.
 - Small drifts (Лозова Жолта, Сирење Биено, Гордон, Бовин) and big negatives
   (Јајца, Зејтин, Тиквици, Шеќер кесички) → next stocktake.
-- Still open from before: Домат-сув reminder, delivery form VAT recalculation,
-  šifrarnik unitless lines, scan paste-JSON test.
+- Still open from before: Домат-сув reminder, šifrarnik unitless lines, scan
+  paste-JSON test.
+
+### 2026-10-19 — Delivery form prices (Лепинја)
+
+- **Bug:** the delivery form's "без ДДВ", "ДДВ %" and "со ДДВ" were three
+  unlinked fields, so Лепинја was saved as 10.56 / 12.00 at 5% (should be
+  11.43). And a hand-entered delivery never set the product's cost — Лепинја
+  stayed at 0 ден (only scans set it).
+- **Fix:** `DeliveryDialog` — typing either price fills the other; changing
+  the rate keeps the price with VAT and recomputes the one without.
+  `refreshFromLatestDelivery` (was `refreshVatRate`) now also sets
+  `products.cost_per_unit` from the latest delivery with a cost > 0, on
+  create/edit/delete.
+- **DB:** that delivery and the product corrected to 11.43 (only delivery in
+  the DB with mismatched prices). Not clicked through (needs login).
 - Nothing today was clicked through by Claude (needs login).
 
 ### 2026-10-19 — Abbreviated special orders
