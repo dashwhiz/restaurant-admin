@@ -25,6 +25,12 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
 - **Deliberate, leave it:** on 17.10 the 10 Пелистерка 0.750 are saved as
   Кнјаз Милос (25 instead of 15). Owner confirmed it was on purpose — don't
   "fix" it in a future reconciliation.
+- **18.10 re-exported by the owner** (the till had missed lines): same paid
+  total, more gratis — added Скопско 0.33 3, Попов Наливно 9, Кока-кола 2,
+  Природен Сок 0.2 2, Вешалица 1; mapped 220210 and 600520. 18.10 = 183.9 paid
+  + 45 gratis, matching the new file. Gratis-only lines (sold 0.000) parse fine.
+- **Duplicate guard:** single-day import now warns (box + confirm) when the
+  day is already imported; bulk import already skipped such days.
 - **Status:** both days now match the till. Not clicked through (needs login).
 
 ### 2026-10-18 — End of day summary
