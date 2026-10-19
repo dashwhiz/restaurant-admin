@@ -4,6 +4,24 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-19 — POS import: gratis column
+
+- **Bug:** the daily TXT parser took "the first two decimal numbers" on a
+  line. GRATIS/Pansion quantities print without decimals ("11"), so every free
+  portion was ignored and stock stayed too high. It also dropped lines ending in
+  the "Pnn" flag (18.10: Пилешки Увијач 3, one Тиквици Похувани).
+- **Fix:** `parseDaily` now reads by column position (from the file's own
+  `--- ------` ruler). Items carry `gratis` (GRATIS + Pansion). The import saves
+  free portions as a separate sale with new column `sales.is_gratis` (note
+  `POS <date> · гратис`): deducts stock, counts in cost, revenue 0. Sales page
+  shows a "Гратис" badge; Аналитика shows the gratis cost under Кост на
+  продадено and leaves it out of revenue, units sold and ABC.
+- **Data:** 18.10 corrected in the DB (owner OK): gratis Скопско 0.5 11,
+  Колбас 1, Еспресо 16 + missing Тиквици 1, Пилешки Увијач 3; stock deducted;
+  šifra 601648 mapped. Paid total now 47045 ден = the till's tariff totals.
+- **Open:** 17.10 needs the same fix — `Documents\17.10.26.TXT` is gone; ask
+  the owner to put it back. Not clicked through (needs login).
+
 ### 2026-10-18 — End of day summary
 
 What was done today (details in the entries below):
