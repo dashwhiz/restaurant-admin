@@ -45,7 +45,12 @@ export function ProductDialog({
         category: form.category.trim() || 'Општо',
         unit: form.unit,
         department: form.department,
-        current_stock: num(form.current_stock),
+        // Only sent when the owner actually changed it. The form holds the
+        // stock from when the page loaded; resending it on a price or note
+        // edit would undo every sale, delivery or import made since.
+        ...(!product || form.current_stock !== blank(product).current_stock
+          ? { current_stock: num(form.current_stock) }
+          : {}),
         min_stock: num(form.min_stock),
         cost_per_unit: num(form.cost_per_unit),
         notes: form.notes.trim() || null,
@@ -65,6 +70,7 @@ export function ProductDialog({
       else
         await createProduct({
           ...input,
+          current_stock: num(form.current_stock),
           kalo_defrost: 0,
           kalo_trim: 0,
           serving_size: null,

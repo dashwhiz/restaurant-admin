@@ -26,8 +26,26 @@ export async function createProduct(input: ProductInput): Promise<Product> {
 }
 
 export async function updateProduct(id: string, input: Partial<ProductInput>): Promise<void> {
-  const { error } = await getSupabase().from('products').update(input).eq('id', id);
+  const sb = getSupabase();
+  // Typing a new "Тековна залиха" sets stock outright, like a count. Log it so
+  // Историја shows it and a later normativ correction treats it as a fresh start.
+  let previous: number | null = null;
+  if (input.current_stock !== undefined) {
+    const { data, error } = await sb.from('products').select('current_stock').eq('id', id).single();
+    if (error) throw error;
+    previous = Number(data.current_stock) || 0;
+  }
+  const { error } = await sb.from('products').update(input).eq('id', id);
   if (error) throw error;
+  if (previous !== null && previous !== input.current_stock) {
+    const { error: logErr } = await sb.from('stock_adjustments').insert({
+      product_id: id,
+      previous_qty: previous,
+      new_qty: input.current_stock,
+      reason: 'Рачна измена на залиха',
+    });
+    if (logErr) throw logErr;
+  }
 }
 
 /** Save several minimum-stock values at once (from the Залиха / Попис table). */
