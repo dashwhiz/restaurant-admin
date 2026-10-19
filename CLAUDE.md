@@ -4,6 +4,19 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-19 — Мелено Месо stock
+
+- **Cause:** Плескавица / Шарска Плескавица normativ was changed to
+  Мелено Месо (0.22 / 0.2 kg) AFTER the 17.10 and 18.10 imports. Those sales
+  had deducted Јунешка + Свинска Кртина (−4.24 each, never bought/counted), and
+  Мелено Месо stayed at its 17.10 count of 14.35. Editing a normativ never
+  re-applies past sales — by design.
+- **DB (owner asked to update):** Мелено Месо 14.35 → 5.67, both Кртина → 0,
+  each logged in `stock_adjustments` (shows in Историја).
+- **Smaller drifts from the same cause** (found by recomputing count + buys −
+  waste − sales): Лозова Жолта −4.4 L, Сирење Биено +0.4, Гордон Амбер −0.15,
+  Бовин −0.12. Not touched; next stocktake fixes them.
+
 ### 2026-10-19 — POS import: gratis column
 
 - **Bug:** the daily TXT parser took "the first two decimal numbers" on a
