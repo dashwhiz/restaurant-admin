@@ -4,6 +4,34 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-19 — Summary so far
+
+What was done today (details in the entries below):
+- **POS gratis:** the daily TXT is now read by column, so GRATIS/Pansion
+  portions are no longer lost. They're saved as sales marked `is_gratis`:
+  stock + cost, no revenue ("Гратис" badge in Продажби, gratis cost in
+  Аналитика). Same fix recovered lines the old parser dropped ("Pnn" flag,
+  page breaks).
+- **17.10 and 18.10 reconciled** with the till files (18.10 re-exported by the
+  owner): both days now match to the denar; gratis and missing lines added,
+  stock deducted. 17.10 Пелистерка-as-Кнјаз is deliberate.
+- **Duplicate guard:** single-day POS import warns if the day is already in.
+- **Мелено Месо:** stock fixed to 5.67 (normativ had been changed after the
+  imports); both Кртина back to 0. Owner confirmed it shows.
+- **Special orders:** abbreviated "Спец.нарачка-кујна/шанк" now recognised;
+  18.10 order moved from a sale to an event in Настани.
+
+Open:
+- **Normativ change → auto stock correction:** owner wants it. Proposal sent
+  (preview + confirm, only sales/events after each product's last count, same
+  for normativi import). Waiting for the owner's OK on that rule.
+- **Event 18.10 "Спец.нарачка-кујна":** owner fills in the menu, then completes it.
+- Small drifts (Лозова Жолта, Сирење Биено, Гордон, Бовин) and big negatives
+  (Јајца, Зејтин, Тиквици, Шеќер кесички) → next stocktake.
+- Still open from before: Домат-сув reminder, delivery form VAT recalculation,
+  šifrarnik unitless lines, scan paste-JSON test.
+- Nothing today was clicked through by Claude (needs login).
+
 ### 2026-10-19 — Abbreviated special orders
 
 - **Bug:** the till writes "SPEC.NARA^KA-kujna" (→ "Спец.нарачка-кујна");
