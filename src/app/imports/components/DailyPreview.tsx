@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/Toast';
 import { IconSearch } from '@/components/ui/Icons';
 import { fmtDate } from '@/lib/format';
 import { listRecipes, recipesWithIngredients } from '@/lib/services/recipes';
-import { getMappings, saveMappings, importDaily, type DailySaleInput, type MappingInput } from '@/lib/services/imports';
+import { getMappings, saveMappings, importDaily, getImportedDays, type DailySaleInput, type MappingInput } from '@/lib/services/imports';
 import { bestMatch, isSpecialOrder } from '@/lib/pos/match';
 import type { ParsedDaily } from '@/lib/pos/parse';
 import type { Recipe } from '@/lib/types';
@@ -23,6 +23,8 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
   const [withIngredients, setWithIngredients] = useState<Set<string>>(new Set());
   const [resolutions, setResolutions] = useState<Record<string, string>>({}); // sifra -> recipeId | SKIP | ''
   const [deduct, setDeduct] = useState(true);
+  // Importing a day twice doubles its sales and deducts its stock again.
+  const [alreadyImported, setAlreadyImported] = useState(false);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -30,7 +32,13 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
   useEffect(() => {
     (async () => {
       try {
-        const [recs, maps, withIngs] = await Promise.all([listRecipes(), getMappings(), recipesWithIngredients()]);
+        const [recs, maps, withIngs, importedDays] = await Promise.all([
+          listRecipes(),
+          getMappings(),
+          recipesWithIngredients(),
+          getImportedDays(),
+        ]);
+        setAlreadyImported(importedDays.has(parsed.date));
         setRecipes(recs);
         setWithIngredients(withIngs);
         const mapBySifra = new Map(maps.map((m) => [m.sifra, m]));
@@ -89,6 +97,9 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
 
   async function confirm() {
     const problems = [
+      alreadyImported
+        ? `${fmtDate(parsed.date)} е ВЕЌЕ УВЕЗЕН. Ако продолжиш, продажбите ќе се запишат двапати и залихата ќе се одземе уште еднаш.`
+        : '',
       unmatched.length
         ? `${unmatched.length} ставки не се поврзани со рецепт и НЕМА да се увезат:\n` +
           unmatched.map((i) => `• ${i.name} (${i.qty})`).join('\n')
@@ -137,6 +148,17 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
           Одземи од залиха
         </label>
       </div>
+
+      {alreadyImported && (
+        <div className="mb-3">
+          <ImportWarning
+            title={`${fmtDate(parsed.date)} е веќе увезен`}
+            hint="Ако касата дала поправен фајл, не го увезувај повторно — поправи ја само разликата во Продажби."
+          >
+            Повторен увоз ќе ги запише продажбите двапати и ќе ја одземе залихата уште еднаш.
+          </ImportWarning>
+        </div>
+      )}
 
       {specials.length > 0 && (
         <div className="mb-3">
