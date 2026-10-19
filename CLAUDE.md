@@ -4,6 +4,32 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-19 — Normativ change corrects past stock
+
+- **Done (owner asked):** changing a recipe's normativ now recomputes stock
+  already taken by its past sales/completed events: per product
+  −(new − old per portion) × portions, only for portions that took stock after
+  the product's stock was last set outright (count, Нулирај, hand edit).
+  Service `src/lib/services/normativ.ts`; applied via `applyLoggedStockDeltas`
+  (stock.ts), logged as `Норматив сменет: …` (Историја shows it with 0, since
+  sale lines already use today's recipe). Recipe dialog shows the list and asks
+  "Зачувај и поправи залиха" / "Само зачувај"; normativi import has a checkbox
+  (on). Rules written up in `docs/features/stock.md`.
+- **DB (live):** `sales.inserted_at` + `sales.stock_deducted`,
+  `stocktake_log.inserted_at`, `events.completed_at` — the cutoff compares when
+  stock really moved, not the business day. Old rows backfilled from
+  `created_at`. Today's manual Мелено Месо / Кртина rows renamed to the
+  `Норматив сменет:` prefix.
+- **Side fixes from the review:** sales imported without deducting no longer
+  move stock on edit/delete; counts equal to the system are logged; a hand edit
+  of Тековна залиха is logged; the product form no longer resends a stale stock
+  value when only price/notes change (it used to undo sales made meanwhile).
+- **Review:** full review by a subagent (1 critical — the same correction could
+  be applied twice on reopening the dialog — and 4 important, all fixed),
+  re-reviewed: OK. Build green. Checked against data: Плескавица 0.22→0.25 gives
+  −0.72 kg Мелено Месо (24 portions after the 17.10 count). Not clicked through
+  (needs login).
+
 ### 2026-10-19 — Summary so far
 
 What was done today (details in the entries below):
@@ -25,9 +51,8 @@ What was done today (details in the entries below):
   the product's cost. Лепинја delivery fixed to 11.43 / 12.00 at 5%.
 
 Open:
-- **Normativ change → auto stock correction:** owner wants it. Proposal sent
-  (preview + confirm, only sales/events after each product's last count, same
-  for normativi import). Waiting for the owner's OK on that rule.
+- **Normativ change → auto stock correction:** done (see entry above); owner
+  to try it on the next normativ change.
 - **Event 18.10 "Спец.нарачка-кујна":** owner fills in the menu, then completes it.
 - Small drifts (Лозова Жолта, Сирење Биено, Гордон, Бовин) and big negatives
   (Јајца, Зејтин, Тиквици, Шеќер кесички) → next stocktake.
