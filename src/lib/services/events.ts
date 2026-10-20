@@ -50,6 +50,15 @@ export async function createEvent(input: EventInput): Promise<EventRow> {
 export const SPECIAL_ORDER_TYPE = 'Специјална нарачка';
 
 /**
+ * An open bar's payment ("Спец.нарачка-шанк"). The drinks themselves are rung
+ * on a separate table and given out as GRATIS, so their stock and cost already
+ * come in with the sales. This event is only the money: no menu, finished from
+ * the start, 18% like drinks.
+ */
+export const OPEN_BAR_TYPE = 'Open bar';
+const isBarOrder = (name: string) => /шанк|šank|sank/i.test(name);
+
+/**
  * Events as takings: special orders are paid at the till and the owner renames
  * them and changes their type (→ Прослава), so every dated event counts —
  * guests × price per guest on its day, completed or not. The event, not a
@@ -78,9 +87,10 @@ export interface PosSpecial {
 
 /**
  * Turn POS "special order" lines into events (menu left empty, to be filled
- * in Настани). A line whose event already exists — same name, date and type —
- * is skipped, so re-importing a day or clicking twice makes no duplicates.
- * Returns how many were created and how many already existed.
+ * in Настани); a шанк line becomes a finished Open bar event (see above). A
+ * line whose event already exists — same name and date, any type — is skipped,
+ * so re-importing a day or clicking twice makes no duplicates. Returns how many
+ * were created and how many already existed.
  */
 export async function createEventsFromPos(specials: PosSpecial[]): Promise<{ created: number; existing: number }> {
   if (specials.length === 0) return { created: 0, existing: 0 };
@@ -88,26 +98,29 @@ export async function createEventsFromPos(specials: PosSpecial[]): Promise<{ cre
   const { data, error } = await getSupabase()
     .from('events')
     .select('name, event_date')
-    .eq('type', SPECIAL_ORDER_TYPE)
     .in('event_date', dates);
   if (error) throw error;
   const key = (name: string, date: string | null) => `${date}|${name}`;
   const seen = new Set((data ?? []).map((e) => key(e.name, e.event_date)));
 
-  const rows: EventInput[] = [];
+  const rows: (EventInput & { status?: string; completed_at?: string })[] = [];
   for (const s of specials) {
     const k = key(s.name, s.date);
     if (seen.has(k)) continue;
     seen.add(k);
+    const bar = isBarOrder(s.name);
     rows.push({
       name: s.name,
-      type: SPECIAL_ORDER_TYPE,
+      type: bar ? OPEN_BAR_TYPE : SPECIAL_ORDER_TYPE,
       event_date: s.date,
       // The till's quantity isn't the number of guests — the owner enters
       // guests and the price per guest himself. Until then it's 1 × the total.
       guest_count: 1,
       price_per_person: s.amount,
-      notes: `Од POS увоз (${s.date}) · ${s.qty} × на касата, вкупно ${fmtMKD(s.amount)} · внеси гости рачно`,
+      notes: bar
+        ? `Од POS увоз (${s.date}) · open bar, пијалокот е во гратис`
+        : `Од POS увоз (${s.date}) · ${s.qty} × на касата, вкупно ${fmtMKD(s.amount)} · внеси гости рачно`,
+      ...(bar ? { status: 'done', completed_at: new Date().toISOString() } : {}),
     });
   }
   if (rows.length) {

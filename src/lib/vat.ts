@@ -21,9 +21,10 @@ export function recipeVatRate(r: { ddv_rate?: number | null; category?: string |
   return r.ddv_rate ?? (r.category === 'Пијалок' ? 18 : 10);
 }
 
-/** Catering is 5%; any other event is served in the restaurant at 10%. */
+/** Catering is 5%, an open bar is drinks at 18%; any other event is served in
+ *  the restaurant at 10%. */
 export function eventVatRate(type: string | null | undefined): number {
-  return type === 'Кетеринг' ? 5 : 10;
+  return type === 'Кетеринг' ? 5 : type === 'Open bar' ? 18 : 10;
 }
 
 export const addVat = (net: number, rate: number) => net * (1 + rate / 100);

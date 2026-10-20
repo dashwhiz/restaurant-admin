@@ -9,7 +9,7 @@ import { createEvent, updateEvent, setEventMenu, type MenuDraft } from '@/lib/se
 import type { EventRow, Recipe } from '@/lib/types';
 import { RecipePicker } from './RecipePicker';
 
-const TYPES = ['Свадба', 'Прослава', 'Кетеринг', 'Специјална нарачка', 'Друго'];
+const TYPES = ['Свадба', 'Прослава', 'Кетеринг', 'Специјална нарачка', 'Open bar', 'Друго'];
 
 export function EventDialog({
   open,
