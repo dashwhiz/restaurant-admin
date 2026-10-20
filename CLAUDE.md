@@ -4,6 +4,19 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-20 — Помфрит now takes from Компири
+
+- **Problem:** "Помфрит" was a separate product used by 39 recipes, never
+  bought, so it sat at −18.15 kg while Компири (bought) was never touched.
+  Owner: fries are made from potatoes, 1.3 kg raw for 1 kg fries.
+- **DB (owner asked):** in all 39 recipes Помфрит → Компири × 1.3 (Св.ребра
+  Свежи and Париска Шницла already had Компири: added to that line). Past
+  sales took 12.35 kg fries → Компири −16.055 (26.88 → 10.825), logged as
+  `Норматив сменет: …`. Помфрит set to 0 (logged) with a note that it's unused.
+  The other −5.8 kg of Помфрит had no sale behind it — not moved.
+- **Watch:** a normativi re-import from the till may bring Помфрит back.
+  Компири never counted → owner to count them.
+
 ### 2026-10-20 — Sales keep the till's amount
 
 - **Why:** turnover was quantity × recipe price, so till discounts made it
