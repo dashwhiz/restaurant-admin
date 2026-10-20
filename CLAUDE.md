@@ -4,6 +4,24 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-20 — Events count in turnover (Продажби + Аналитика)
+
+- **Why:** owner wants special orders in Продажби so they count in turnover.
+  Till check 19.10: VKUPEN PROMET 133315 = sales 25895 + шанк 43200 + кујна
+  64220 (the 41155 at the bottom is gratis/discount value, not the total).
+- **Done:** the event is the one record (no duplicate sale). Every dated event
+  — any type, since the owner renames them and switches type to Прослава — is
+  listed in Продажби under its day ("Настани" section, read-only, links to
+  Настани) and adds guests × price to the day total and CSV. Аналитика adds it
+  to Приход (sub-line "… настани"), net revenue, the 6-month trend, and a
+  completed event's menu cost to COGS. VAT by `eventVatRate(type)`.
+  `listDatedEvents` / `eventAmount` in `events.ts`.
+- **Data:** owner meanwhile renamed 18.10 → "Експириенс Балкан", 19.10 кујна →
+  "Спец.нарачка-кујна Мекици" (type Прослава) and DELETED the 19.10 шанк event
+  (43200) — asked whether on purpose.
+- **Limit:** a шанк (drinks) order is netted at 10%, not 18%.
+- **Status:** build green; inline review only (not the full review).
+
 ### 2026-10-20 — Special orders go to Настани on import
 
 - **Bug:** special orders reached Настани only via a separate "Префрли во
