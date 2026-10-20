@@ -19,7 +19,14 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
 - **Data:** owner meanwhile renamed 18.10 → "Експириенс Балкан", 19.10 кујна →
   "Спец.нарачка-кујна Мекици" (type Прослава) and DELETED the 19.10 шанк event
   (43200) — asked whether on purpose.
-- **Limit:** a шанк (drinks) order is netted at 10%, not 18%.
+- **Open bar (owner's practice):** drinks are rung on a separate table (e.g.
+  305/1) and given out as GRATIS — stock/cost come in with the gratis sales.
+  The guest then pays a "Спец.нарачка-шанк" line = the money only. So the
+  owner had deleted the шанк event. Now the import makes шанк lines an
+  `Open bar` event: no menu, `done` from the start, 18% (`eventVatRate`), note
+  "open bar, пијалокот е во гратис". Type also selectable in EventDialog.
+  POS dedup is now by name + date, any type. 19.10 шанк not re-added yet
+  (asked the owner).
 - **Status:** build green; inline review only (not the full review).
 
 ### 2026-10-20 — Special orders go to Настани on import
