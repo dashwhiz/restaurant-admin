@@ -15,6 +15,9 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
 - **DB (owner asked):** 19.10 events added — Спец.нарачка-шанк 1 × 43200,
   Спец.нарачка-кујна 3 × 21406.67 (64220 total), both planned. Owner fills the
   menus, then completes them.
+- **Then (owner):** the till quantity is not the guest count — he enters guests
+  himself. `createEventsFromPos` now makes 1 guest × the full till amount, note
+  says "внеси гости рачно". 19.10 кујна changed to 1 × 64220.
 - **Status:** build green; inline review only.
 
 ### 2026-10-20 — Delivery: change the product
