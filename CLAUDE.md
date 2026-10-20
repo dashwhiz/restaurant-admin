@@ -4,6 +4,18 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-20 — Control correction on Залиха / Попис
+
+- **Why:** open-bar groups — waiters don't write down every drink, so a few
+  articles drift. Owner wants to add/subtract on top of the system stock for
+  just those, not count them (Избројано stays as it was).
+- **Done:** new column "Корекција +/−" (`submitCorrections` in
+  `stocktake.ts`, via `applyLoggedStockDeltas`, reason `Контролен попис`, shows
+  in Историја). A row takes a count or a correction, not both. It's a delta, so
+  the normativ-correction cutoff ignores it. Corrections apply now; the
+  "Датум на попис" only dates counts.
+- **Status:** build green; inline review only; not clicked through (needs login).
+
 ### 2026-10-19 — Normativ change corrects past stock
 
 - **Done (owner asked):** changing a recipe's normativ now recomputes stock
