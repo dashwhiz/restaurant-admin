@@ -4,6 +4,16 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-20 — Delivery: change the product
+
+- **Why:** owner entered Ајдамер instead of Кашкавал and the edit form had the
+  product locked.
+- **Done:** product is editable when editing a delivery. `updateDelivery` takes
+  the old quantity off the old product, adds the new quantity to the new one,
+  and refreshes cost/VAT on both. Invoice VAT rate kept on swap.
+- **Status:** build green; inline review only; owner to fix today's delivery
+  himself (Испорака → Измени → Кашкавал).
+
 ### 2026-10-20 — Control correction on Залиха / Попис
 
 - **Why:** open-bar groups — waiters don't write down every drink, so a few
