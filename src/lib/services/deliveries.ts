@@ -65,7 +65,11 @@ export async function refreshFromLatestDelivery(productId: string): Promise<void
   }
 }
 
-// The product isn't editable in the edit form, so only the quantity delta matters.
+/**
+ * Save an edited delivery. If the product changed (Ајдамер entered instead of
+ * Кашкавал), the old product gives back the old quantity and the new one gets
+ * the new quantity; otherwise only the quantity difference moves.
+ */
 export async function updateDelivery(id: string, input: DeliveryInput): Promise<void> {
   const sb = getSupabase();
   const { data: old, error: oErr } = await sb
@@ -74,10 +78,18 @@ export async function updateDelivery(id: string, input: DeliveryInput): Promise<
     .eq('id', id)
     .single();
   if (oErr) throw oErr;
+  const oldProduct = old.product_id as string;
+  const oldQty = Number(old.quantity) || 0;
   const { error } = await sb.from('purchases').update(input).eq('id', id);
   if (error) throw error;
-  await applyStockDelta(old.product_id as string, input.quantity - (Number(old.quantity) || 0));
-  await refreshFromLatestDelivery(old.product_id as string);
+  if (oldProduct === input.product_id) {
+    await applyStockDelta(oldProduct, input.quantity - oldQty);
+  } else {
+    await applyStockDelta(oldProduct, -oldQty);
+    await applyStockDelta(input.product_id, input.quantity);
+    await refreshFromLatestDelivery(input.product_id);
+  }
+  await refreshFromLatestDelivery(oldProduct);
 }
 
 export async function deleteDelivery(id: string): Promise<void> {

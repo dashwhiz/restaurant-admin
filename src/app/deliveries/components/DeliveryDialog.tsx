@@ -93,8 +93,8 @@ export function DeliveryDialog({
           <select
             className="input"
             value={form.product_id}
-            disabled={!!delivery}
             // A new delivery starts at the product's known (or guessed) rate.
+            // An edit keeps the invoice's rate even if the product is swapped.
             onChange={(e) => {
               const p = products.find((x) => x.id === e.target.value);
               set({ product_id: e.target.value });
