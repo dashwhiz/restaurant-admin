@@ -11,6 +11,7 @@
 //     always worked out without VAT and are the same in both.
 import { fetchAllRows } from './paged';
 import { eventAmount, listEventMenus, listDatedEvents } from './events';
+import { saleAmount } from './sales';
 import { eventVatRate, productVatRate, recipeVatRate, removeVat, shownCost, shownPrice } from '@/lib/vat';
 import type {
   EventMenuItem,
@@ -242,7 +243,7 @@ function compute(rows: Rows, days: number, from: string, withVat: boolean): Anal
   let revenueFromPrices = 0;
   for (const s of periodSales) {
     if (posDaysInPeriod.has(s.created_at.slice(0, 10))) continue; // already counted at the till
-    const gross = paidQty(s) * (recipeById.get(s.recipe_id)?.selling_price ?? 0);
+    const gross = saleAmount(s, recipeById.get(s.recipe_id)?.selling_price);
     revenueFromPrices += showPrice(gross, recipeRate(s.recipe_id));
     revenueNet += removeVat(gross, recipeRate(s.recipe_id));
   }
@@ -315,10 +316,7 @@ function compute(rows: Rows, days: number, from: string, withVat: boolean): Anal
     if (posDayAll.has(s.created_at.slice(0, 10))) continue;
     const idx = monthIndex.get(localMonthKey(new Date(s.created_at)));
     if (idx !== undefined) {
-      months[idx].revenue += showPrice(
-        paidQty(s) * (recipeById.get(s.recipe_id)?.selling_price ?? 0),
-        recipeRate(s.recipe_id),
-      );
+      months[idx].revenue += showPrice(saleAmount(s, recipeById.get(s.recipe_id)?.selling_price), recipeRate(s.recipe_id));
     }
   }
   for (const e of events) {
@@ -332,7 +330,7 @@ function compute(rows: Rows, days: number, from: string, withVat: boolean): Anal
     const recipe = recipeById.get(s.recipe_id);
     if (!recipe || s.is_gratis) continue; // ranks what sells, not what's given away
     const stat = stats.get(s.recipe_id) ?? { id: s.recipe_id, name: recipe.name, qty: 0, revenue: 0, revenueNet: 0 };
-    const gross = s.quantity * (recipe.selling_price ?? 0);
+    const gross = saleAmount(s, recipe.selling_price);
     stat.qty += s.quantity;
     stat.revenue += showPrice(gross, recipeVatRate(recipe));
     stat.revenueNet += removeVat(gross, recipeVatRate(recipe));

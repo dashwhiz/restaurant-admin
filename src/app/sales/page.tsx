@@ -9,7 +9,7 @@ import { IconPlus, IconEdit, IconTrash, IconChevron } from '@/components/ui/Icon
 import { fmtMKD, fmtDate, departmentOf } from '@/lib/format';
 import { exportCsv, downloadCsv, toCsv } from '@/lib/csv';
 import { listRecipes } from '@/lib/services/recipes';
-import { listSales, deleteSale, type SaleRow } from '@/lib/services/sales';
+import { listSales, deleteSale, saleAmount, type SaleRow } from '@/lib/services/sales';
 import { eventAmount, listDatedEvents } from '@/lib/services/events';
 import type { EventRow, Recipe } from '@/lib/types';
 import { eventVatRate, recipeVatRate } from '@/lib/vat';
@@ -68,8 +68,9 @@ export default function SalesPage() {
         рецепт: s.recipe?.name ?? '',
         оддел: departmentOf(s.recipe?.category),
         количина: s.quantity ?? 0,
-        цена: s.recipe?.selling_price ?? 0,
-        износ: s.is_gratis ? 0 : (s.quantity || 0) * (s.recipe?.selling_price ?? 0),
+        // Price actually charged: the till's amount per portion when there is one.
+        цена: s.amount != null && s.quantity ? Math.round((s.amount / s.quantity) * 100) / 100 : s.recipe?.selling_price ?? 0,
+        износ: saleAmount(s, s.recipe?.selling_price),
         белешка: s.notes ?? '',
       })),
       ...events.map((e) => ({
@@ -104,7 +105,7 @@ export default function SalesPage() {
     for (const s of sales) {
       const g = dayGroup((s.created_at || '').slice(0, 10));
       (departmentOf(s.recipe?.category) === 'Бар' ? g.bar : g.kitchen).push(s);
-      g.revenue += s.recipe && !s.is_gratis ? vat.price((s.quantity || 0) * (s.recipe.selling_price ?? 0), recipeVatRate(s.recipe)) : 0;
+      g.revenue += s.recipe ? vat.price(saleAmount(s, s.recipe.selling_price), recipeVatRate(s.recipe)) : 0;
       g.count += 1;
     }
     for (const e of eventRows) {

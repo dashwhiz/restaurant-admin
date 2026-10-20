@@ -66,6 +66,9 @@ export interface Sale {
   notes: string | null;
   /** Given away (POS GRATIS/Pansion): deducts stock and counts as cost, but brings no revenue. */
   is_gratis: boolean;
+  /** What the till took for this row, with VAT (POS import; discounts
+   *  included). Null = quantity × the recipe's price (manual sales, old imports). */
+  amount: number | null;
   /** False for a POS day imported without "Одземи од залиха": it never took stock. */
   stock_deducted: boolean;
   /** Business day the sale belongs to. */

@@ -202,6 +202,8 @@ export async function importCenovnik(parsed: ParsedPrice[], dbRecipes: Recipe[])
 export interface DailySaleInput {
   recipeId: string;
   qty: number;
+  /** What the till took for the paid portions, with VAT (discounts included). */
+  amount: number;
   /** Free portions (GRATIS/Pansion): a separate `is_gratis` sale — stock and cost, no revenue. */
   gratis: number;
 }
@@ -241,8 +243,8 @@ export async function importDaily(date: string, items: DailySaleInput[], deductS
   const r3 = (n: number) => Math.round(n * 1000) / 1000;
   const rounded = items
     .flatMap((it) => [
-      { recipeId: it.recipeId, qty: r3(it.qty), gratis: false },
-      { recipeId: it.recipeId, qty: r3(it.gratis), gratis: true },
+      { recipeId: it.recipeId, qty: r3(it.qty), amount: Math.round(it.amount * 100) / 100, gratis: false },
+      { recipeId: it.recipeId, qty: r3(it.gratis), amount: 0, gratis: true },
     ])
     .filter((it) => it.qty > 0);
   if (rounded.length === 0) return 0;
@@ -257,6 +259,8 @@ export async function importDaily(date: string, items: DailySaleInput[], deductS
     rounded.map((it) => ({
       recipe_id: it.recipeId,
       quantity: it.qty,
+      // The till's amount, so turnover matches the till even with discounts.
+      amount: it.amount,
       is_gratis: it.gratis,
       // A day imported without deducting took no stock; a later normativ
       // correction must leave it alone.

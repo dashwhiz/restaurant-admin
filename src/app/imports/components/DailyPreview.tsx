@@ -125,7 +125,7 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
       await saveMappings(entries);
       const items: DailySaleInput[] = parsed.items
         .filter((i) => resolutions[i.sifra] && resolutions[i.sifra] !== SKIP)
-        .map((i) => ({ recipeId: resolutions[i.sifra], qty: i.qty, gratis: i.gratis }));
+        .map((i) => ({ recipeId: resolutions[i.sifra], qty: i.qty, amount: i.amount, gratis: i.gratis }));
       const n = await importDaily(parsed.date, items, deduct);
       // Only special orders left on Прескокни: one picked as a recipe was just sold.
       const skipped = new Set(parsed.items.filter((i) => resolutions[i.sifra] === SKIP).map((i) => i.name));

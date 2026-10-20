@@ -84,7 +84,7 @@ export function BulkDailyPreview({ files, onDone }: { files: ParsedDaily[]; onDo
               continue;
             }
             if (!remembered) learned.push({ sifra: item.sifra, recipe_id: recipeId, skip: false });
-            matched.push({ recipeId, qty: item.qty, gratis: item.gratis });
+            matched.push({ recipeId, qty: item.qty, amount: item.amount, gratis: item.gratis });
             if (!withIngredients.has(recipeId)) noNormativ.add(recipeName.get(recipeId) ?? item.name);
           }
           return {
