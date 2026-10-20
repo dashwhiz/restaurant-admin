@@ -83,9 +83,11 @@ export async function createEventsFromPos(specials: PosSpecial[]): Promise<{ cre
       name: s.name,
       type: SPECIAL_ORDER_TYPE,
       event_date: s.date,
-      guest_count: Math.max(1, Math.round(s.qty)),
-      price_per_person: s.qty > 0 ? Number((s.amount / s.qty).toFixed(2)) : 0,
-      notes: `Од POS увоз (${s.date}) · вкупно ${fmtMKD(s.amount)}`,
+      // The till's quantity isn't the number of guests — the owner enters
+      // guests and the price per guest himself. Until then it's 1 × the total.
+      guest_count: 1,
+      price_per_person: s.amount,
+      notes: `Од POS увоз (${s.date}) · ${s.qty} × на касата, вкупно ${fmtMKD(s.amount)} · внеси гости рачно`,
     });
   }
   if (rows.length) {
