@@ -1,5 +1,6 @@
 // Stocktake: record a physical count and set stock to the counted value.
 import { getSupabase } from '@/lib/supabase';
+import { applyLoggedStockDeltas } from './stock';
 
 export interface StocktakeEntry {
   product_id: string;
@@ -35,4 +36,20 @@ export async function submitStocktake(entries: StocktakeEntry[], countedOn?: str
     updated++;
   }
   return updated;
+}
+
+/** Reason of the stock_adjustments rows written by a control correction. */
+export const CONTROL_REASON = 'Контролен попис';
+
+/**
+ * Control correction: add a signed amount to the current stock of a few
+ * products (e.g. −6 Скопско poured at a group and never written down) instead
+ * of setting it to a count. Logged in stock_adjustments so Историја shows it.
+ * It's a delta on top of sales, not a count, so a later normativ correction
+ * still covers the sales before it (see normativ.ts).
+ */
+export async function submitCorrections(entries: { product_id: string; delta: number }[]): Promise<number> {
+  const deltas = entries.filter((e) => e.delta).map((e) => ({ productId: e.product_id, delta: e.delta }));
+  await applyLoggedStockDeltas(deltas, CONTROL_REASON);
+  return deltas.length;
 }

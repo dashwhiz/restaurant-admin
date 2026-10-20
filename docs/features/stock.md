@@ -48,6 +48,9 @@ amount of its own, since its sale lines already use today's recipe.
   (the old normativ was wrong) or **Само зачувај** (the recipe changes from
   today; old sales stay as they were and won't reverse exactly).
 - Normativi import: checkbox, on by default.
+- A **control correction** (Залиха / Попис → "Корекција +/−", logged as
+  `Контролен попис`) is a delta on top of sales, not a count, so it does not
+  move the cutoff.
 - Known limit: rows from before 2026-10-19 have `inserted_at` backfilled from
   `created_at` (their real save time wasn't recorded).
 

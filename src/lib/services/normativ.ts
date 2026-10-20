@@ -16,6 +16,7 @@
 // See docs/features/stock.md.
 import { fetchAllRows } from './paged';
 import { applyLoggedStockDeltas } from './stock';
+import { CONTROL_REASON } from './stocktake';
 
 /** Prefix of the stock_adjustments rows written here. History reads it. */
 export const NORMATIV_REASON = 'Норматив сменет: ';
@@ -122,11 +123,15 @@ export async function planNormativStock(next: Map<string, IngredientAmount[]>): 
   ]);
 
   // The latest moment each product's stock was set outright. Normativ
-  // corrections are just deltas on top of sales and don't reset it.
+  // corrections and control corrections are just deltas on top of sales and
+  // don't reset it.
   const cutoff = new Map<string, number>();
   const bump = (pid: string, at: string) => cutoff.set(pid, Math.max(cutoff.get(pid) ?? -Infinity, Date.parse(at)));
   for (const c of counts) bump(c.product_id, c.inserted_at);
-  for (const r of resets) if (!(r.reason || '').startsWith(NORMATIV_REASON)) bump(r.product_id, r.created_at);
+  for (const r of resets) {
+    const reason = r.reason || '';
+    if (!reason.startsWith(NORMATIV_REASON) && reason !== CONTROL_REASON) bump(r.product_id, r.created_at);
+  }
 
   // Every portion that took stock: sales (paid and gratis) and completed events.
   // A POS day imported without "Одземи од залиха" never took any, so it's skipped.

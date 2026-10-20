@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/Toast';
 import { IconSearch } from '@/components/ui/Icons';
 import { num, departmentOf } from '@/lib/format';
 import { listProducts, setMinStocks } from '@/lib/services/products';
-import { submitStocktake, type StocktakeEntry } from '@/lib/services/stocktake';
+import { submitCorrections, submitStocktake, type StocktakeEntry } from '@/lib/services/stocktake';
 import type { Product } from '@/lib/types';
 import { ProductHistory } from '@/app/products/components/ProductHistory';
 
@@ -14,6 +14,9 @@ export default function StocktakePage() {
   const toast = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [counts, setCounts] = useState<Record<string, string>>({});
+  // Control corrections: +/− on top of the current stock, for the few drinks
+  // that go unwritten at open-bar groups. A row takes a count or a correction.
+  const [fixes, setFixes] = useState<Record<string, string>>({});
   const [mins, setMins] = useState<Record<string, string>>({});
   const [query, setQuery] = useState('');
   const [dept, setDept] = useState<'all' | 'Бар' | 'Кујна'>('all');
@@ -31,6 +34,7 @@ export default function StocktakePage() {
     try {
       setProducts(await listProducts());
       setCounts({});
+      setFixes({});
       setMins({});
     } catch (e) {
       toast('Грешка при вчитување: ' + (e as Error).message, 'error');
@@ -64,7 +68,10 @@ export default function StocktakePage() {
   const minChanges = Object.entries(mins)
     .map(([id, v]) => ({ id, min_stock: num(v) }))
     .filter((c) => c.min_stock !== (Number(products.find((p) => p.id === c.id)?.min_stock) || 0));
-  const pending = entered.length + minChanges.length;
+  const corrections = Object.entries(fixes)
+    .map(([id, v]) => ({ product_id: id, delta: num(v) }))
+    .filter((c) => c.delta !== 0);
+  const pending = entered.length + corrections.length + minChanges.length;
 
   async function submit() {
     const entries: StocktakeEntry[] = entered
@@ -73,11 +80,12 @@ export default function StocktakePage() {
         // A count equal to the system is kept: it confirms the real amount.
         return { product_id: id, system_qty: p.current_stock, counted: num(v) };
       });
-    if (!entries.length && !minChanges.length) return toast('Нема промени за зачувување', 'info');
+    if (!entries.length && !corrections.length && !minChanges.length) return toast('Нема промени за зачувување', 'info');
     const backdated = countDate && countDate !== today;
     const when = backdated ? ` со датум ${countDate.split('-').reverse().join('.')}` : '';
     const parts = [
       entries.length ? `залихата за ${entries.length} производи${when}` : '',
+      corrections.length ? `корекција на залихата за ${corrections.length} производи` : '',
       minChanges.length ? `минимумот за ${minChanges.length} производи` : '',
     ].filter(Boolean);
     if (!confirm(`Ќе се ажурира ${parts.join(' и ')}. Продолжи?`)) return;
@@ -85,8 +93,9 @@ export default function StocktakePage() {
     try {
       // Today keeps the real save time; another day is stamped at midday.
       const n = entries.length ? await submitStocktake(entries, backdated ? countDate : undefined) : 0;
+      const c = corrections.length ? await submitCorrections(corrections) : 0;
       if (minChanges.length) await setMinStocks(minChanges);
-      const done = [n ? `залиха за ${n}` : '', minChanges.length ? `минимум за ${minChanges.length}` : '']
+      const done = [n ? `залиха за ${n}` : '', c ? `корекција за ${c}` : '',minChanges.length ? `минимум за ${minChanges.length}` : '']
         .filter(Boolean)
         .join(', ');
       toast(`Зачувано — ${done} производи`, 'success');
@@ -102,7 +111,7 @@ export default function StocktakePage() {
     <>
       <PageHeader
         title="Залиха / Попис"
-        subtitle="Внеси избројана количина — залихата се поставува на неа"
+        subtitle="Избројано ја поставува залихата на бројката; Корекција додава (+) или одзема (−) од постоечката"
         actions={
           <>
             <label className="flex items-center gap-2 text-sm text-muted">
@@ -170,6 +179,9 @@ export default function StocktakePage() {
                 <th className="p-3">Производ</th>
                 <th className="p-3 text-right">Систем</th>
                 <th className="p-3 text-right">Избројано</th>
+                <th className="p-3 text-right" title="Додај (+) или одземи (−) од системската залиха, без целосно броење">
+                  Корекција +/−
+                </th>
                 <th className="p-3 text-right">Разлика</th>
                 <th className="p-3 text-right">Минимум</th>
               </tr>
@@ -177,7 +189,8 @@ export default function StocktakePage() {
             <tbody>
               {filtered.map((p) => {
                 const raw = counts[p.id] ?? '';
-                const diff = raw === '' ? null : num(raw) - p.current_stock;
+                const fix = fixes[p.id] ?? '';
+                const diff = raw !== '' ? num(raw) - p.current_stock : fix !== '' ? num(fix) : null;
                 return (
                   <tr key={p.id} className="border-b border-border/60 last:border-0">
                     <td className="p-3 font-semibold">
@@ -194,7 +207,19 @@ export default function StocktakePage() {
                         type="number"
                         step="0.001"
                         value={raw}
+                        disabled={fix !== ''}
                         onChange={(e) => setCounts((c) => ({ ...c, [p.id]: e.target.value }))}
+                      />
+                    </td>
+                    <td className="p-3 text-right">
+                      <input
+                        className="input w-24 text-right"
+                        type="number"
+                        step="0.001"
+                        placeholder="±"
+                        value={fix}
+                        disabled={raw !== ''}
+                        onChange={(e) => setFixes((f) => ({ ...f, [p.id]: e.target.value }))}
                       />
                     </td>
                     <td className={`p-3 text-right font-medium ${diff == null ? 'text-muted' : diff < 0 ? 'text-danger' : diff > 0 ? 'text-success' : ''}`}>
