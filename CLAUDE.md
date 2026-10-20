@@ -4,6 +4,35 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-20 — End of day summary
+
+What was done today (details in the entries below):
+- **Залиха / Попис:** new "Корекција +/−" column — adds/subtracts on top of
+  system stock (open-bar drift), logged as `Контролен попис`.
+- **Deliveries:** the product can be changed when editing (Ајдамер → Кашкавал
+  fixed by the owner; Кашкавал checks out at 18.94).
+- **Special orders:** the POS import now creates the events itself (no
+  separate button); the till quantity is not the guest count (1 × total).
+  "Спец.нарачка-шанк" = open bar money only → `Open bar` event, done, no menu,
+  18% (drinks are rung as gratis on table 305/1).
+- **Turnover:** every dated event counts in Продажби (own "Настани" section)
+  and Аналитика (revenue, trend, COGS once completed).
+- **Till amount:** new `sales.amount`; import stores it, revenue uses it.
+  17/18/19.10 backfilled — all three days equal the till to the denar
+  (99421 / 47045 / 133315).
+- **Помфрит → Компири ×1.3** in 39 recipes; Пржен Компир = 0.25 kg fries →
+  0.325 kg. Past sales corrected; Компири 10.375, Помфрит 0 (unused).
+
+Open:
+- **Count tomorrow (2026-10-21):** Компири (10.375 is a calculation) and
+  Ајдамер (−2.775, never counted; 0.85 kg of it unexplained).
+- Events 18.10 "Експириенс Балкан" and 19.10 "Спец.нарачка-кујна Мекици":
+  owner fills guests/price/menu, then completes them.
+- A normativi re-import from the till may bring Помфрит back — check then.
+- Nothing today was clicked through by Claude (needs login); all reviews inline.
+- Still open from before: small drifts + big negatives → stocktake, Домат-сув
+  reminder, šifrarnik unitless lines, scan paste-JSON test.
+
 ### 2026-10-20 — Помфрит now takes from Компири
 
 - **Problem:** "Помфрит" was a separate product used by 39 recipes, never
