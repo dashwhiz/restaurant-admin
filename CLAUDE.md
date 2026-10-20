@@ -14,6 +14,8 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
   sales took 12.35 kg fries → Компири −16.055 (26.88 → 10.825), logged as
   `Норматив сменет: …`. Помфрит set to 0 (logged) with a note that it's unused.
   The other −5.8 kg of Помфрит had no sale behind it — not moved.
+- **Пржен Компир = помфрит too** (owner): 0.1 → 0.13 kg Компири; its 2 sales
+  of 17.10 corrected (−0.06). Компири now 10.765.
 - **Watch:** a normativi re-import from the till may bring Помфрит back.
   Компири never counted → owner to count them.
 
