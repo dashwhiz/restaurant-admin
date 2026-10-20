@@ -4,6 +4,21 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-20 — Sales keep the till's amount
+
+- **Why:** turnover was quantity × recipe price, so till discounts made it
+  differ (19.10: 26250 vs 25895). Owner asked to store the till amount.
+- **Done:** new column `sales.amount` (with VAT, nullable). POS import saves
+  each line's amount (gratis rows 0); `saleAmount()` in `sales.ts` = amount,
+  else qty × price — used by Продажби (day total, CSV, price per portion) and
+  Аналитика (revenue, trend, per-recipe/ABC). Editing a sale scales the amount
+  to the new quantity; changing its recipe drops it.
+- **DB backfill (17–19.10)** from the TXT files, split per recipe by quantity;
+  17.10 Пелистерка's 1500 went to Кнјаз Милос (deliberate swap). All three
+  days now equal the till: 99421 / 47045 (37395 + 9650) / 133315
+  (25895 + 107420).
+- **Status:** build green; inline review only. Not clicked through.
+
 ### 2026-10-20 — Events count in turnover (Продажби + Аналитика)
 
 - **Why:** owner wants special orders in Продажби so they count in turnover.
