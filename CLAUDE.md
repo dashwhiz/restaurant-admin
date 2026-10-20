@@ -4,6 +4,19 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-20 — Special orders go to Настани on import
+
+- **Bug:** special orders reached Настани only via a separate "Префрли во
+  Настани" button; clicking just Увези skipped them silently (19.10).
+- **Fix:** single-day and multi-day POS imports now create the events
+  themselves after the sales (`importSpecials` in `SpecialOrders.tsx`; an
+  event failure is reported, not thrown, so the day isn't re-imported). The
+  purple box is now just a notice. Single-day: only lines left on Прескокни.
+- **DB (owner asked):** 19.10 events added — Спец.нарачка-шанк 1 × 43200,
+  Спец.нарачка-кујна 3 × 21406.67 (64220 total), both planned. Owner fills the
+  menus, then completes them.
+- **Status:** build green; inline review only.
+
 ### 2026-10-20 — Delivery: change the product
 
 - **Why:** owner entered Ајдамер instead of Кашкавал and the edit form had the
