@@ -1,45 +1,34 @@
 'use client';
 
-import { useState } from 'react';
-import { useToast } from '@/components/ui/Toast';
 import { createEventsFromPos, type PosSpecial } from '@/lib/services/events';
 
 /**
- * "N special orders found → move to Настани". Shared by the single-day and
- * bulk POS imports. The button locks while saving and after success; the
- * service also skips events that already exist, so nothing is created twice.
+ * "N special orders found → they go to Настани on import". Shared by the
+ * single-day and bulk POS imports. The import itself creates the events
+ * (`importSpecials`): a separate button was easy to miss, and 19.10's orders
+ * never reached Настани.
  */
 export function SpecialOrders({ specials }: { specials: PosSpecial[] }) {
-  const toast = useToast();
-  const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle');
-
   if (specials.length === 0) return null;
-
-  async function moveToEvents() {
-    setState('busy');
-    try {
-      const { created, existing } = await createEventsFromPos(specials);
-      const parts = [
-        created ? `Создадени ${created} настани. Дополни го менито во Настани.` : '',
-        existing ? `${existing} веќе постојат, прескокнати.` : '',
-      ].filter(Boolean);
-      toast(parts.join(' '), 'success');
-      setState('done');
-    } catch (e) {
-      toast('Грешка: ' + (e as Error).message, 'error');
-      setState('idle');
-    }
-  }
-
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-purple-500/40 bg-purple-500/10 px-4 py-3 text-sm">
-      <span>
-        {specials.length} специјална нарачка пронајдена. Самата ставка е на „Прескокни“ — залихата
-        се одзема кога ќе го завршиш настанот.
-      </span>
-      <button className="btn-ghost" onClick={moveToEvents} disabled={state !== 'idle'}>
-        {state === 'busy' ? 'Се префрла…' : state === 'done' ? 'Префрлено ✓' : 'Префрли во Настани'}
-      </button>
+    <div className="rounded-lg border border-purple-500/40 bg-purple-500/10 px-4 py-3 text-sm">
+      {specials.length} специјална нарачка пронајдена ({specials.map((s) => s.name).join(', ')}). При увоз
+      автоматски се додава во Настани; залихата се одзема кога ќе го завршиш настанот.
     </div>
   );
+}
+
+/**
+ * Create the events after the sales are saved. A failure here must not look
+ * like a failed import (re-importing would sell the day twice), so it's
+ * returned as a message instead of thrown.
+ */
+export async function importSpecials(specials: PosSpecial[]): Promise<string> {
+  if (specials.length === 0) return '';
+  try {
+    const { created } = await createEventsFromPos(specials);
+    return created ? ` Додадени ${created} настани во Настани — дополни им го менито.` : '';
+  } catch (e) {
+    return ` Настаните НЕ се додадени (${(e as Error).message}) — додај ги рачно во Настани.`;
+  }
 }

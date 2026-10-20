@@ -13,7 +13,7 @@ import type { ParsedDaily } from '@/lib/pos/parse';
 import type { Recipe } from '@/lib/types';
 import { RecipePicker, SKIP } from './RecipePicker';
 import { ImportWarning } from './ImportWarning';
-import { SpecialOrders } from './SpecialOrders';
+import { SpecialOrders, importSpecials } from './SpecialOrders';
 
 
 
@@ -127,7 +127,10 @@ export function DailyPreview({ parsed, onDone }: { parsed: ParsedDaily; onDone: 
         .filter((i) => resolutions[i.sifra] && resolutions[i.sifra] !== SKIP)
         .map((i) => ({ recipeId: resolutions[i.sifra], qty: i.qty, gratis: i.gratis }));
       const n = await importDaily(parsed.date, items, deduct);
-      toast(`Увезени ${n} продажби за ${fmtDate(parsed.date)}`, 'success');
+      // Only special orders left on Прескокни: one picked as a recipe was just sold.
+      const skipped = new Set(parsed.items.filter((i) => resolutions[i.sifra] === SKIP).map((i) => i.name));
+      const ev = await importSpecials(specials.filter((s) => skipped.has(s.name)));
+      toast(`Увезени ${n} продажби за ${fmtDate(parsed.date)}.${ev}`, 'success');
       onDone();
     } catch (e) {
       toast('Грешка: ' + (e as Error).message, 'error');

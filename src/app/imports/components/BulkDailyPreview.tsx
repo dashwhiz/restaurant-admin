@@ -17,7 +17,7 @@ import {
 } from '@/lib/services/imports';
 import type { PosSpecial } from '@/lib/services/events';
 import { ImportWarning } from './ImportWarning';
-import { SpecialOrders } from './SpecialOrders';
+import { SpecialOrders, importSpecials } from './SpecialOrders';
 
 const SKIP = '__skip__';
 
@@ -136,7 +136,8 @@ export function BulkDailyPreview({ files, onDone }: { files: ParsedDaily[]; onDo
         setProgress(`${i + 1}/${importable.length} · ${fmtDate(plan.date)}`);
         total += await importDaily(plan.date, plan.matched, deduct);
       }
-      toast(`Увезени ${total} продажби од ${importable.length} дена`, 'success');
+      const ev = await importSpecials(specials);
+      toast(`Увезени ${total} продажби од ${importable.length} дена.${ev}`, 'success');
       onDone();
     } catch (e) {
       toast('Грешка: ' + (e as Error).message, 'error');
