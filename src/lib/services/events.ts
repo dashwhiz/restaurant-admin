@@ -49,6 +49,26 @@ export async function createEvent(input: EventInput): Promise<EventRow> {
 
 export const SPECIAL_ORDER_TYPE = 'Специјална нарачка';
 
+/**
+ * Events as takings: special orders are paid at the till and the owner renames
+ * them and changes their type (→ Прослава), so every dated event counts —
+ * guests × price per guest on its day, completed or not. The event, not a
+ * sale, is the one record: its stock moves when it's completed, and fixing
+ * guests/price there fixes the turnover too.
+ */
+export async function listDatedEvents(): Promise<EventRow[]> {
+  const { data, error } = await getSupabase()
+    .from('events')
+    .select('*')
+    .not('event_date', 'is', null);
+  if (error) throw error;
+  return (data ?? []) as EventRow[];
+}
+
+/** What a special order brought in, with VAT (as the till shows it). */
+export const eventAmount = (e: Pick<EventRow, 'guest_count' | 'price_per_person'>) =>
+  (Number(e.guest_count) || 0) * (Number(e.price_per_person) || 0);
+
 export interface PosSpecial {
   date: string;
   name: string;

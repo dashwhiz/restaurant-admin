@@ -10,8 +10,11 @@
 //     amounts differ between them; profit, margin, food cost % and waste % are
 //     always worked out without VAT and are the same in both.
 import { fetchAllRows } from './paged';
-import { productVatRate, recipeVatRate, removeVat, shownCost, shownPrice } from '@/lib/vat';
+import { eventAmount, listEventMenus, listDatedEvents } from './events';
+import { eventVatRate, productVatRate, recipeVatRate, removeVat, shownCost, shownPrice } from '@/lib/vat';
 import type {
+  EventMenuItem,
+  EventRow,
   Product,
   Purchase,
   Recipe,
@@ -27,6 +30,8 @@ export interface Kpis {
   /** Which source the revenue came from, so the UI can be honest about it. */
   revenueFromPos: number;
   revenueFromPrices: number;
+  /** Events (special orders from the till, catering…), guests × price per guest. */
+  revenueFromEvents: number;
   cogs: number;
   wasteCost: number;
   /** Cost of portions given away (POS gratis) — already included in `cogs`. */
@@ -149,6 +154,8 @@ interface Rows {
   waste: WasteRow[];
   posImports: PosImport[];
   posItems: Pick<PosSalesItem, 'import_id' | 'amount' | 'recipe_id'>[];
+  events: EventRow[];
+  menus: EventMenuItem[];
 }
 
 export async function loadAnalytics(days: number): Promise<AnalyticsViews> {
@@ -162,7 +169,7 @@ export async function loadAnalytics(days: number): Promise<AnalyticsViews> {
   const trendFromIso = trendFrom.toISOString();
   const earliest = trendFromIso < from ? trendFromIso : from;
 
-  const [products, recipes, ingredients, sales, purchases, waste, posImports] = await Promise.all([
+  const [products, recipes, ingredients, sales, purchases, waste, posImports, events, menus] = await Promise.all([
     fetchAllRows<Product>('products'),
     fetchAllRows<Recipe>('recipes'),
     fetchAllRows<RecipeIngredient>('recipe_ingredients'),
@@ -174,6 +181,9 @@ export async function loadAnalytics(days: number): Promise<AnalyticsViews> {
     fetchAllRows<PosImport>('pos_imports', {
       gte: { column: 'import_date', value: earliest.slice(0, 10) },
     }),
+    // Few rows: the dated events and their menus.
+    listDatedEvents(),
+    listEventMenus(),
   ]);
   // Only the line items belonging to those imports, and only the two columns
   // the totals need.
@@ -185,12 +195,12 @@ export async function loadAnalytics(days: number): Promise<AnalyticsViews> {
           in: { column: 'import_id', values: posImports.map((i) => i.id) },
         });
 
-  const rows: Rows = { products, recipes, ingredients, sales, purchases, waste, posImports, posItems };
+  const rows: Rows = { products, recipes, ingredients, sales, purchases, waste, posImports, posItems, events, menus };
   return { net: compute(rows, days, from, false), gross: compute(rows, days, from, true) };
 }
 
 function compute(rows: Rows, days: number, from: string, withVat: boolean): AnalyticsData {
-  const { products, recipes, ingredients, sales, purchases, waste, posImports, posItems } = rows;
+  const { products, recipes, ingredients, sales, purchases, waste, posImports, posItems, events, menus } = rows;
   // Shown money: costs are stored without VAT, till amounts and prices with it.
   const showCost = (net: number, rate: number) => shownCost(withVat, net, rate);
   const showPrice = (gross: number, rate: number) => shownPrice(withVat, gross, rate);
@@ -236,11 +246,25 @@ function compute(rows: Rows, days: number, from: string, withVat: boolean): Anal
     revenueFromPrices += showPrice(gross, recipeRate(s.recipe_id));
     revenueNet += removeVat(gross, recipeRate(s.recipe_id));
   }
-  const revenue = revenueFromPos + revenueFromPrices;
+  // Events: special orders paid at the till as one line, catering, … — kept as events, not sales.
+  const periodEvents = events.filter((e) => (e.event_date ?? '') >= from.slice(0, 10));
+  let revenueFromEvents = 0;
+  for (const e of periodEvents) {
+    revenueFromEvents += showPrice(eventAmount(e), eventVatRate(e.type));
+    revenueNet += removeVat(eventAmount(e), eventVatRate(e.type));
+  }
+  const revenue = revenueFromPos + revenueFromPrices + revenueFromEvents;
 
   // ── COGS: what the sold portions cost to make ──
+  // An event's menu costs ingredients once it's completed (that's when
+  // its stock moves); before that it's money in with no cost yet.
+  const doneEvents = new Map(periodEvents.filter((e) => e.status === 'done').map((e) => [e.id, e]));
   const sumSales = (cost: Map<string, number>) =>
-    periodSales.reduce((sum, s) => sum + s.quantity * (cost.get(s.recipe_id) ?? 0), 0);
+    periodSales.reduce((sum, s) => sum + s.quantity * (cost.get(s.recipe_id) ?? 0), 0) +
+    menus.reduce((sum, m) => {
+      const e = doneEvents.get(m.event_id);
+      return e ? sum + m.qty_per_person * (e.guest_count || 1) * (cost.get(m.recipe_id) ?? 0) : sum;
+    }, 0);
   const sumWaste = (cost: Map<string, number>) =>
     waste.reduce((sum, w) => sum + w.quantity * (cost.get(w.product_id) ?? 0), 0);
   const cogsNet = sumSales(recipeCost);
@@ -251,6 +275,7 @@ function compute(rows: Rows, days: number, from: string, withVat: boolean): Anal
     revenue,
     revenueFromPos,
     revenueFromPrices,
+    revenueFromEvents,
     cogs: sumSales(recipeCostShown),
     wasteCost: sumWaste(productCostShown),
     gratisCost: periodSales.reduce(
@@ -295,6 +320,10 @@ function compute(rows: Rows, days: number, from: string, withVat: boolean): Anal
         recipeRate(s.recipe_id),
       );
     }
+  }
+  for (const e of events) {
+    const idx = monthIndex.get((e.event_date ?? '').slice(0, 7));
+    if (idx !== undefined) months[idx].revenue += showPrice(eventAmount(e), eventVatRate(e.type));
   }
 
   // ── Per-recipe performance ──

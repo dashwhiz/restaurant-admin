@@ -219,9 +219,10 @@ export default function AnalyticsPage() {
               label={`Приход ${vat.label}`}
               value={fmtMKD(k.revenue)}
               sub={
-                k.revenueFromPos > 0
+                (k.revenueFromPos > 0
                   ? `${fmtMKD(k.revenueFromPos)} од POS каса`
-                  : `${k.unitsSold} продадени порции`
+                  : `${k.unitsSold} продадени порции`) +
+                (k.revenueFromEvents > 0 ? ` · ${fmtMKD(k.revenueFromEvents)} настани` : '')
               }
             />
             <Kpi
