@@ -4,6 +4,23 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-10-29 — Event completed several times
+
+- **Bug:** the ✓ (Заврши) button deducted the menu every time OK was pressed;
+  the page hadn't refreshed, so the owner clicked again. Мекици (19.10) was
+  deducted 2×, Експириенс Балкан (18.10) 3× (found by recomputing from the
+  last count/adjustment: Свинско Каре only in Балкан −3×, Мелено Месо only in
+  Мекици −2×).
+- **Fix:** `completeEvent` now marks the event done first, only if it isn't
+  already (`.neq('status','done')`), and throws "Настанот е веќе завршен"
+  otherwise — then deducts. Commit `abb4795`.
+- **DB (owner asked):** the extra 2× Балкан + 1× Мекици given back to 34
+  products, logged in `stock_adjustments` ("Двојно завршен настан: …").
+  Свинско Каре, Пршута, Павлака, Пилешко Бело, Кртина now equal the recomputed
+  value exactly.
+- **Still open:** editing a completed event (guests/menu) doesn't adjust
+  stock, and a later delete would return the new amounts. Not fixed yet.
+
 ### 2026-10-20 — End of day summary
 
 What was done today (details in the entries below):
