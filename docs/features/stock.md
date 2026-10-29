@@ -23,6 +23,27 @@ To make reversal exact:
 - **Do not clamp at zero.** Stock is allowed to go negative — it's a real signal
   ("sold more than the system knew") and clamping makes deletes un-reversible.
 
+## Events (Настани)
+
+An event moves stock only once it is **completed**; a planned event's menu is
+just a plan. Stock taken = menu qty per guest × guests × the recipe's normativ.
+All in `src/lib/services/events.ts`.
+
+- **Complete (✓):** marks the event done first — only if it isn't already —
+  then deducts. A second click or a stale page gets "Настанот е веќе завршен"
+  and deducts nothing. (Before 2026-10-29 every OK deducted again: Мекици was
+  taken 2×, Експириенс Балкан 3×; the extra was given back, logged as
+  `Двојно завршен настан: …`.)
+- **Edit a completed event:** reads the old guests and menu fresh, saves, then
+  per recipe applies new − old portions (unchanged rows skipped). More guests
+  or portions take the extra; fewer give it back; a removed row gives back all.
+  Price, date and notes don't touch stock.
+- **Delete a completed event:** gives back guests × menu as saved — exactly
+  what is deducted, thanks to the edit rule above.
+- **Open bar** events are done from the start with no menu: the drinks come in
+  with the gratis sales, so the event moves no stock.
+- A recipe with no normativ deducts nothing.
+
 ## When a normativ changes
 
 A sale deducts its recipe's ingredients as they are at that moment, but deleting
