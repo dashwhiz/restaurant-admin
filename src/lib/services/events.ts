@@ -150,13 +150,21 @@ export async function setEventMenu(eventId: string, items: MenuDraft[]): Promise
 /** Mark an event done and deduct its menu's ingredients from stock. */
 export async function completeEvent(ev: EventRow, menu: MenuItemRow[]): Promise<void> {
   const sb = getSupabase();
+  // Mark it done first, and only if it isn't already, so a second click (or a
+  // stale page) can't deduct the menu again. completed_at is when stock moved,
+  // for normativ corrections (see normativ.ts).
+  const { data, error } = await sb
+    .from('events')
+    .update({ status: 'done', completed_at: new Date().toISOString() })
+    .eq('id', ev.id)
+    .neq('status', 'done')
+    .select('id');
+  if (error) throw error;
+  if (!data?.length) throw new Error('Настанот е веќе завршен — освежете ја страницата.');
   const guests = ev.guest_count || 1;
   for (const item of menu) {
     await applyRecipeStock(item.recipe_id, item.qty_per_person * guests);
   }
-  // When stock moved, for normativ corrections (see normativ.ts).
-  const { error } = await sb.from('events').update({ status: 'done', completed_at: new Date().toISOString() }).eq('id', ev.id);
-  if (error) throw error;
 }
 
 /** Delete an event; if it was completed, return its ingredients to stock first.
