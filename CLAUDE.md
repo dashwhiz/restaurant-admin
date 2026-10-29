@@ -18,8 +18,11 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
   products, logged in `stock_adjustments` ("Двојно завршен настан: …").
   Свинско Каре, Пршута, Павлака, Пилешко Бело, Кртина now equal the recomputed
   value exactly.
-- **Still open:** editing a completed event (guests/menu) doesn't adjust
-  stock, and a later delete would return the new amounts. Not fixed yet.
+- **Then fixed (owner asked):** editing a completed event now moves stock by
+  the difference — `updateEvent(id, input, menu)` reads the old status, guests
+  and menu fresh, saves, and per recipe applies new − old portions (unchanged
+  rows skipped). So a later delete returns exactly what is deducted. Build
+  green; inline review only; not clicked through (needs login).
 
 ### 2026-10-20 — End of day summary
 
