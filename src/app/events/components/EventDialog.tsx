@@ -55,8 +55,9 @@ export function EventDialog({
         price_per_person: num(form.price_per_person),
         notes: form.notes.trim() || null,
       };
-      const id = event ? (await updateEvent(event.id, input), event.id) : (await createEvent(input)).id;
-      await setEventMenu(id, items.map((i) => ({ recipe_id: i.recipe_id, qty_per_person: num(i.qty_per_person) })));
+      const drafts = items.map((i) => ({ recipe_id: i.recipe_id, qty_per_person: num(i.qty_per_person) }));
+      if (event) await updateEvent(event.id, input, drafts);
+      else await setEventMenu((await createEvent(input)).id, drafts);
       toast(event ? 'Зачувано' : 'Додадено', 'success');
       onSaved();
       onClose();

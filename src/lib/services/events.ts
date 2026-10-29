@@ -1,5 +1,6 @@
 // Catering events. Completing an event deducts its menu's ingredients from
-// stock; deleting a completed event returns them. All via the stock helper.
+// stock; editing a completed one moves stock by the difference; deleting it
+// returns them. All via the stock helper.
 import { getSupabase } from '@/lib/supabase';
 import { fmtMKD } from '@/lib/format';
 import type { EventRow, EventMenuItem } from '@/lib/types';
@@ -130,9 +131,34 @@ export async function createEventsFromPos(specials: PosSpecial[]): Promise<{ cre
   return { created: rows.length, existing: specials.length - rows.length };
 }
 
-export async function updateEvent(id: string, input: EventInput): Promise<void> {
-  const { error } = await getSupabase().from('events').update(input).eq('id', id);
+/**
+ * Save an edited event and its menu. If it's already completed, its stock has
+ * moved, so move it by the difference: give back what the old guests × menu
+ * took, take what the new one takes. The old state is read fresh — the page
+ * may be stale.
+ */
+export async function updateEvent(id: string, input: EventInput, menu: MenuDraft[]): Promise<void> {
+  const sb = getSupabase();
+  const { data: old, error: oldErr } = await sb
+    .from('events')
+    .select('status, guest_count, menu:event_menu_items(recipe_id, qty_per_person)')
+    .eq('id', id)
+    .single();
+  if (oldErr) throw oldErr;
+  const { error } = await sb.from('events').update(input).eq('id', id);
   if (error) throw error;
+  await setEventMenu(id, menu);
+  if (old.status !== 'done') return;
+
+  // Portions per recipe: + new, − old; unchanged rows net to 0 and are skipped.
+  const portions = new Map<string, number>();
+  const add = (recipeId: string, n: number) => portions.set(recipeId, (portions.get(recipeId) ?? 0) + n);
+  const oldGuests = old.guest_count || 1;
+  for (const i of old.menu ?? []) add(i.recipe_id, -(Number(i.qty_per_person) || 0) * oldGuests);
+  for (const i of menu) add(i.recipe_id, i.qty_per_person * (input.guest_count || 1));
+  for (const [recipeId, n] of portions) {
+    if (Math.abs(n) > 1e-9) await applyRecipeStock(recipeId, n);
+  }
 }
 
 /** Replace an event's menu wholesale. */
