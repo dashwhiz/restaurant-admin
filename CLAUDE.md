@@ -22,7 +22,7 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
   the difference — `updateEvent(id, input, menu)` reads the old status, guests
   and menu fresh, saves, and per recipe applies new − old portions (unchanged
   rows skipped). So a later delete returns exactly what is deducted. Build
-  green; inline review only; not clicked through (needs login).
+  green; inline review only. Owner tried it on the live site: works.
 
 ### 2026-10-20 — End of day summary
 
