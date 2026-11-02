@@ -4,6 +4,18 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-11-02 — Lists hid older rows (Испораки, Продажби, Отпад)
+
+- **Bug:** owner changed Месопром 20.10 Јунешка Кртина 25 kg → Мелено Месо
+  and it "vanished". The row was fine in the DB (invoice 134/26, stock
+  right); `listDeliveries` loaded only the newest 300 of 418, cutting 20.10
+  in half (all its rows are 12:00, so the edit reshuffled which showed).
+  `listSales` had `.limit(500)` of 986 → nothing before 25.10 showed in
+  Продажби; `listWaste` `.limit(300)` (0 rows now).
+- **Fix:** all three use `fetchAllRows` and sort newest first in JS.
+  Build green; inline review only; not clicked through. If loading gets slow
+  as sales grow, add a date range instead of a limit.
+
 ### 2026-11-02 — Настани: Сите / Планирани / Завршени
 
 - **Done (owner asked):** status tabs with counts on the events page (default
