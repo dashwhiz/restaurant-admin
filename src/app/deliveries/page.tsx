@@ -5,7 +5,7 @@ import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { IconPlus, IconEdit, IconTrash, IconSearch, IconChevron } from '@/components/ui/Icons';
-import { fmtMKD, fmtDate, fmtTime } from '@/lib/format';
+import { fmtMKD, fmtDate } from '@/lib/format';
 import { exportCsv, downloadCsv, toCsv } from '@/lib/csv';
 import Link from 'next/link';
 import { IconScan } from '@/components/ui/Icons';
@@ -20,6 +20,14 @@ const NO_SUPPLIER = '—';
 interface Group {
   key: string;
   label: string;
+  rows: DeliveryRow[];
+  total: number;
+}
+
+/** One supplier's lines within a day. */
+interface SupplierGroup {
+  key: string;
+  name: string;
   rows: DeliveryRow[];
   total: number;
 }
@@ -86,6 +94,22 @@ export default function DeliveriesPage() {
     return list; // date groups stay in the newest-first order rows already arrive in
   }, [filtered, groupBy, vat]);
 
+  // Inside an opened day: one row per supplier (alphabetical, no-supplier
+  // last), each opening to what was taken from them.
+  function bySupplier(day: Group): SupplierGroup[] {
+    const map = new Map<string, SupplierGroup>();
+    for (const r of day.rows) {
+      const name = r.supplier?.trim() || NO_SUPPLIER;
+      if (!map.has(name)) map.set(name, { key: `${day.key}|${name}`, name, rows: [], total: 0 });
+      const sg = map.get(name)!;
+      sg.rows.push(r);
+      sg.total += vat.cost((r.quantity || 0) * (r.cost_per_unit ?? 0), r.ddv_rate ?? 0);
+    }
+    return [...map.values()].sort((a, b) =>
+      a.name === NO_SUPPLIER ? 1 : b.name === NO_SUPPLIER ? -1 : a.name.localeCompare(b.name, 'mk'),
+    );
+  }
+
   // Switching the tab needs a sensible default open state: the newest day for
   // "by date", everything open for "by supplier" (there are far fewer suppliers).
   function chooseGroupBy(next: 'date' | 'supplier') {
@@ -143,6 +167,51 @@ export default function DeliveriesPage() {
   function exportGroup(g: Group) {
     downloadCsv(`lira-isporaki-${slug(g.label)}.csv`, toCsv(rowsFor(g.rows)));
     toast(`Преземени испораки за ${g.label}`, 'success');
+  }
+
+  // The lines themselves. By supplier they span many days, so the date shows;
+  // within a day's supplier it would only repeat.
+  function itemsTable(list: DeliveryRow[], showDate: boolean) {
+    return (
+      <table className="w-full text-sm">
+        <thead className="border-b border-border text-left text-xs uppercase text-muted">
+          <tr>
+            {showDate && <th className="p-3">Датум</th>}
+            <th className="p-3">Производ</th>
+            <th className="p-3 text-right">Количина</th>
+            <th className="p-3 text-right">Цена {vat.label}</th>
+            <th className="p-3"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {list.map((r) => (
+            <tr key={r.id} className="border-b border-border/60 last:border-0">
+              {showDate && (
+                <td className="p-3 whitespace-nowrap text-muted">{fmtDate((r.created_at || '').slice(0, 10))}</td>
+              )}
+              <td className="p-3 font-semibold">
+                {r.product?.name ?? '?'}
+                {r.stock_applied === false && (
+                  <> <Badge tone="yellow">Пред попис — без залиха</Badge></>
+                )}
+              </td>
+              <td className="p-3 text-right">{r.quantity} {r.product?.unit ?? ''}</td>
+              <td className="p-3 text-right">{r.cost_per_unit > 0 ? fmtMKD(vat.cost(r.cost_per_unit, r.ddv_rate ?? 0)) : '—'}</td>
+              <td className="p-3">
+                <div className="flex justify-end gap-1">
+                  <button className="btn-ghost px-2 py-1" onClick={() => setDialog({ open: true, row: r })} aria-label="Измени">
+                    <IconEdit className="h-4 w-4" />
+                  </button>
+                  <button className="btn-ghost px-2 py-1 text-danger" onClick={() => remove(r)} aria-label="Избриши">
+                    <IconTrash className="h-4 w-4" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
   }
 
   return (
@@ -237,48 +306,30 @@ export default function DeliveriesPage() {
                     CSV
                   </button>
                 </div>
-                {open && (
-                  <div className="overflow-x-auto border-t border-border">
-                    <table className="w-full text-sm">
-                      <thead className="border-b border-border text-left text-xs uppercase text-muted">
-                        <tr>
-                          <th className="p-3">{groupBy === 'supplier' ? 'Датум' : 'Час'}</th>
-                          <th className="p-3">Производ</th>
-                          <th className="p-3 text-right">Количина</th>
-                          <th className="p-3 text-right">Цена {vat.label}</th>
-                          {groupBy === 'date' && <th className="p-3">Добавувач</th>}
-                          <th className="p-3"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {g.rows.map((r) => (
-                          <tr key={r.id} className="border-b border-border/60 last:border-0">
-                            <td className="p-3 whitespace-nowrap text-muted">
-                              {groupBy === 'supplier' ? fmtDate((r.created_at || '').slice(0, 10)) : fmtTime(r.created_at)}
-                            </td>
-                            <td className="p-3 font-semibold">
-                              {r.product?.name ?? '?'}
-                              {r.stock_applied === false && (
-                                <> <Badge tone="yellow">Пред попис — без залиха</Badge></>
-                              )}
-                            </td>
-                            <td className="p-3 text-right">{r.quantity} {r.product?.unit ?? ''}</td>
-                            <td className="p-3 text-right">{r.cost_per_unit > 0 ? fmtMKD(vat.cost(r.cost_per_unit, r.ddv_rate ?? 0)) : '—'}</td>
-                            {groupBy === 'date' && <td className="p-3">{r.supplier ?? '—'}</td>}
-                            <td className="p-3">
-                              <div className="flex justify-end gap-1">
-                                <button className="btn-ghost px-2 py-1" onClick={() => setDialog({ open: true, row: r })} aria-label="Измени">
-                                  <IconEdit className="h-4 w-4" />
-                                </button>
-                                <button className="btn-ghost px-2 py-1 text-danger" onClick={() => remove(r)} aria-label="Избриши">
-                                  <IconTrash className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                {open && groupBy === 'supplier' && (
+                  <div className="overflow-x-auto border-t border-border">{itemsTable(g.rows, true)}</div>
+                )}
+                {open && groupBy === 'date' && (
+                  <div className="flex flex-col border-t border-border">
+                    {bySupplier(g).map((sg) => {
+                      const subOpen = openGroups.has(sg.key);
+                      return (
+                        <div key={sg.key} className="border-b border-border/60 last:border-0">
+                          <button
+                            onClick={() => toggle(sg.key)}
+                            className="flex w-full items-center gap-3 py-2.5 pl-8 pr-4 text-left text-sm"
+                          >
+                            <IconChevron className={`h-4 w-4 shrink-0 transition-transform ${subOpen ? 'rotate-90' : ''}`} />
+                            <span className="flex-1 font-semibold">{sg.name}</span>
+                            <span className="text-xs text-muted">{sg.rows.length} ставки</span>
+                            {sg.total > 0 && <span className="font-semibold">{fmtMKD(sg.total)}</span>}
+                          </button>
+                          {subOpen && (
+                            <div className="overflow-x-auto border-t border-border/60 pl-8">{itemsTable(sg.rows, false)}</div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
