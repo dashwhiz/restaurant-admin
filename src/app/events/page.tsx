@@ -28,6 +28,7 @@ export default function EventsPage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialog, setDialog] = useState<{ open: boolean; event: EventRow | null }>({ open: false, event: null });
+  const [show, setShow] = useState<'all' | 'planned' | 'done'>('all');
 
   async function load() {
     setLoading(true);
@@ -55,6 +56,11 @@ export default function EventsPage() {
     }
     return m;
   }, [menus]);
+
+  const plannedCount = events.filter((e) => e.status !== 'done').length;
+  const shown = events.filter((e) =>
+    show === 'all' ? true : show === 'done' ? e.status === 'done' : e.status !== 'done',
+  );
 
   const dialogMenu: MenuDraft[] = dialog.event
     ? (menuByEvent.get(dialog.event.id) ?? []).map((i) => ({ recipe_id: i.recipe_id, qty_per_person: i.qty_per_person }))
@@ -95,13 +101,31 @@ export default function EventsPage() {
         }
       />
 
+      <div className="mb-3 flex flex-wrap gap-1">
+        {([
+          { key: 'all', label: 'Сите', n: events.length },
+          { key: 'planned', label: 'Планирани', n: plannedCount },
+          { key: 'done', label: 'Завршени', n: events.length - plannedCount },
+        ] as const).map((t) => (
+          <button
+            key={t.key}
+            className={show === t.key ? 'btn-ghost border-primary text-primary' : 'btn-ghost'}
+            onClick={() => setShow(t.key)}
+          >
+            {t.label} <span className="text-xs text-muted">{t.n}</span>
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <p className="text-sm text-muted">Вчитување…</p>
-      ) : events.length === 0 ? (
-        <div className="card"><EmptyState text="Сè уште нема настани" /></div>
+      ) : shown.length === 0 ? (
+        <div className="card">
+          <EmptyState text={events.length === 0 ? 'Сè уште нема настани' : show === 'done' ? 'Нема завршени настани' : 'Нема планирани настани'} />
+        </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {events.map((ev) => {
+          {shown.map((ev) => {
             const menu = menuByEvent.get(ev.id) ?? [];
             return (
               <div key={ev.id} className="card">
