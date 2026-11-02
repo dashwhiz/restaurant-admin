@@ -20,8 +20,8 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
   The 4 Ананас rows set to false (their 24 L already taken off). Build green;
   inline review only; not clicked through.
 - **Open:** Месопром 16.10 (Колбаси 3.3, Св.ребра 13.7, Сланина 3.24) were
-  also scanned after the 17.10 count (system 0 at count) — asked the owner.
-  Колбаси is at −23.71 after a count of 26 — looks like a unit mix-up.
+  also scanned after the 17.10 count (system 0 at count). Owner: leave them
+  as they are (stock not touched, rows stay `stock_applied = true`). Колбаси is at −23.71 after a count of 26 — looks like a unit mix-up.
 
 ### 2026-10-29 — Event completed several times
 
