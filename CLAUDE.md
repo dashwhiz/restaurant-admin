@@ -4,6 +4,12 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-11-02 — Настани: Сите / Планирани / Завршени
+
+- **Done (owner asked):** status tabs with counts on the events page (default
+  Сите), same look as the Испораки tabs. `src/app/events/page.tsx` only.
+  Build green; inline review only; not clicked through.
+
 ### 2026-11-02 — Scan: same invoice can't go in twice
 
 - **Done (owner asked):** `findImportedInvoice` in `scan.ts` — an invoice is
