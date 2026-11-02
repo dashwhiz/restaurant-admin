@@ -4,6 +4,13 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-11-02 — Испораки: day opens into suppliers
+
+- **Done (owner asked):** "По датум" — opening a day shows one row per
+  supplier (items, total); opening a supplier shows its lines (product, qty,
+  price, edit/delete). "По добавувач" unchanged. `src/app/deliveries/page.tsx`.
+  Build green; inline review only; not clicked through (needs login).
+
 ### 2026-11-02 — Лозова Жолта: deliveries from before the count
 
 - **Found:** 4 Ананас Шоп invoices (06.10, 14.10, 16.10 ×2 = 24 L Лозова
