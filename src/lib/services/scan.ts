@@ -5,6 +5,7 @@
 // purchase, reversibly, through the shared stock helper.
 import { getSupabase } from '@/lib/supabase';
 import { applyStockDelta } from './stock';
+import { lastCountDay } from './deliveries';
 import { normName } from '@/lib/pos/match';
 
 // What the Edge Function returns (one row per invoice line).
@@ -196,7 +197,7 @@ export class ScanImportError extends Error {
 export async function importScannedInvoice(
   lines: ImportLine[],
   meta: { supplier: string | null; invoiceNumber: string | null; invoiceDate: string | null },
-): Promise<{ imported: number; created: number }> {
+): Promise<{ imported: number; created: number; beforeCount: number }> {
   const sb = getSupabase();
   const note = meta.invoiceNumber ? `Фактура ${meta.invoiceNumber} · Скенирање` : 'Скенирање';
   // Date the delivery when it actually arrived, not when it was scanned — a
@@ -207,6 +208,7 @@ export async function importScannedInvoice(
     : null;
   let imported = 0;
   let created = 0;
+  let beforeCount = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -240,6 +242,11 @@ export async function importScannedInvoice(
         }
       }
 
+      // An invoice dated before the product's last count is already in that
+      // count (Лозова Жолта: 24 L scanned after the 17.10 count went on top).
+      const countDay = receivedAt ? await lastCountDay(productId) : null;
+      const applyStock = !(countDay && meta.invoiceDate! < countDay);
+
       const { error: pErr } = await sb.from('purchases').insert({
         product_id: productId,
         quantity: line.quantity,
@@ -251,16 +258,18 @@ export async function importScannedInvoice(
         // Omitted when the invoice had no readable date — the DB default (now)
         // is the honest fallback rather than a guess.
         ...(receivedAt ? { created_at: receivedAt } : {}),
+        stock_applied: applyStock,
       });
       if (pErr) throw pErr;
 
-      await applyStockDelta(productId, line.quantity);
+      if (applyStock) await applyStockDelta(productId, line.quantity);
+      else beforeCount++;
       imported++;
     } catch (e) {
       throw new ScanImportError((e as Error).message, i);
     }
   }
-  return { imported, created };
+  return { imported, created, beforeCount };
 }
 
 function fileToBase64(file: File): Promise<string> {

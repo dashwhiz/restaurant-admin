@@ -57,6 +57,8 @@ export interface Purchase {
   supplier: string | null;
   notes: string | null;
   created_at: string;
+  /** false: dated before the product's last count when scanned, so stock was left alone. */
+  stock_applied: boolean;
 }
 
 export interface Sale {

@@ -246,7 +246,7 @@ export default function ScanPage() {
           target: r.target,
         };
       });
-      const { imported, created } = await importScannedInvoice(lines, {
+      const { imported, created, beforeCount } = await importScannedInvoice(lines, {
         supplier: result.supplier,
         invoiceNumber: result.invoice_number,
         invoiceDate: result.invoice_date,
@@ -262,7 +262,8 @@ export default function ScanPage() {
       ).catch(() => {});
 
       toast(
-        `Увезени ${imported} ставки${created ? ` · создадени ${created} нови производи` : ''}`,
+        `Увезени ${imported} ставки${created ? ` · создадени ${created} нови производи` : ''}` +
+          (beforeCount ? ` · ${beforeCount} пред последниот попис, залихата не е сменета` : ''),
         'success',
       );
       reset();

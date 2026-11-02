@@ -41,9 +41,9 @@ export async function productHistory(productId: string, since: string | null): P
   const recipeIds = [...perPortion.keys()];
 
   const [deliveries, waste, counts, resets, sales, menuItems] = await Promise.all([
-    fetchAllRows<{ id: string; quantity: number; cost_per_unit: number; supplier: string | null; created_at: string }>(
+    fetchAllRows<{ id: string; quantity: number; cost_per_unit: number; supplier: string | null; created_at: string; stock_applied: boolean }>(
       'purchases',
-      { select: 'id, quantity, cost_per_unit, supplier, created_at', in: mine, gte },
+      { select: 'id, quantity, cost_per_unit, supplier, created_at, stock_applied', in: mine, gte },
     ),
     fetchAllRows<{ id: string; quantity: number; reason: string | null; created_at: string }>('waste_log', {
       select: 'id, quantity, reason, created_at',
@@ -86,7 +86,7 @@ export async function productHistory(productId: string, since: string | null): P
       kind: 'delivery',
       at: d.created_at,
       qty: Number(d.quantity) || 0,
-      text: `${d.supplier || 'Без добавувач'}${cost}`,
+      text: `${d.supplier || 'Без добавувач'}${cost}${d.stock_applied === false ? ' · пред попис, залихата не е сменета' : ''}`,
     });
   }
 

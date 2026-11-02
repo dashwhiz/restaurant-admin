@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { PageHeader, EmptyState } from '@/components/ui/PageHeader';
+import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { IconPlus, IconEdit, IconTrash, IconSearch, IconChevron } from '@/components/ui/Icons';
 import { fmtMKD, fmtDate, fmtTime } from '@/lib/format';
@@ -101,7 +102,10 @@ export default function DeliveriesPage() {
   }
 
   async function remove(r: DeliveryRow) {
-    if (!confirm('Избриши ја оваа испорака? Залихата ќе се врати.')) return;
+    const msg = r.stock_applied === false
+      ? 'Избриши ја оваа испорака? Таа е пред пописот, залихата не се менува.'
+      : 'Избриши ја оваа испорака? Залихата ќе се врати.';
+    if (!confirm(msg)) return;
     try {
       await deleteDelivery(r.id);
       toast('Избришано', 'success');
@@ -252,7 +256,12 @@ export default function DeliveriesPage() {
                             <td className="p-3 whitespace-nowrap text-muted">
                               {groupBy === 'supplier' ? fmtDate((r.created_at || '').slice(0, 10)) : fmtTime(r.created_at)}
                             </td>
-                            <td className="p-3 font-semibold">{r.product?.name ?? '?'}</td>
+                            <td className="p-3 font-semibold">
+                              {r.product?.name ?? '?'}
+                              {r.stock_applied === false && (
+                                <> <Badge tone="yellow">Пред попис — без залиха</Badge></>
+                              )}
+                            </td>
                             <td className="p-3 text-right">{r.quantity} {r.product?.unit ?? ''}</td>
                             <td className="p-3 text-right">{r.cost_per_unit > 0 ? fmtMKD(vat.cost(r.cost_per_unit, r.ddv_rate ?? 0)) : '—'}</td>
                             {groupBy === 'date' && <td className="p-3">{r.supplier ?? '—'}</td>}

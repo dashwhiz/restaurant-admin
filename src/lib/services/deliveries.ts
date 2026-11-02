@@ -29,6 +29,21 @@ export async function listDeliveries(): Promise<DeliveryRow[]> {
   return (data ?? []) as DeliveryRow[];
 }
 
+/**
+ * The day of a product's last stocktake (YYYY-MM-DD), or null if never counted.
+ * A delivery dated before it is already in the counted amount.
+ */
+export async function lastCountDay(productId: string): Promise<string | null> {
+  const { data, error } = await getSupabase()
+    .from('stocktake_log')
+    .select('created_at')
+    .eq('product_id', productId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  return (data?.[0]?.created_at as string | undefined)?.slice(0, 10) ?? null;
+}
+
 export async function createDelivery(input: DeliveryInput): Promise<void> {
   const { error } = await getSupabase().from('purchases').insert(input);
   if (error) throw error;
@@ -74,7 +89,7 @@ export async function updateDelivery(id: string, input: DeliveryInput): Promise<
   const sb = getSupabase();
   const { data: old, error: oErr } = await sb
     .from('purchases')
-    .select('product_id, quantity')
+    .select('product_id, quantity, stock_applied')
     .eq('id', id)
     .single();
   if (oErr) throw oErr;
@@ -82,6 +97,12 @@ export async function updateDelivery(id: string, input: DeliveryInput): Promise<
   const oldQty = Number(old.quantity) || 0;
   const { error } = await sb.from('purchases').update(input).eq('id', id);
   if (error) throw error;
+  // Dated before a count when scanned: it never moved stock, so an edit doesn't either.
+  if (old.stock_applied === false) {
+    await refreshFromLatestDelivery(oldProduct);
+    if (oldProduct !== input.product_id) await refreshFromLatestDelivery(input.product_id);
+    return;
+  }
   if (oldProduct === input.product_id) {
     await applyStockDelta(oldProduct, input.quantity - oldQty);
   } else {
@@ -96,12 +117,12 @@ export async function deleteDelivery(id: string): Promise<void> {
   const sb = getSupabase();
   const { data: old, error: oErr } = await sb
     .from('purchases')
-    .select('product_id, quantity')
+    .select('product_id, quantity, stock_applied')
     .eq('id', id)
     .single();
   if (oErr) throw oErr;
   const { error } = await sb.from('purchases').delete().eq('id', id);
   if (error) throw error;
-  await applyStockDelta(old.product_id as string, -(Number(old.quantity) || 0));
+  if (old.stock_applied !== false) await applyStockDelta(old.product_id as string, -(Number(old.quantity) || 0));
   await refreshFromLatestDelivery(old.product_id as string);
 }
