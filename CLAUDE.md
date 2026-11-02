@@ -4,6 +4,17 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-11-02 — Лозова Жолта: deliveries from before the count
+
+- **Found:** 4 Ананас Шоп invoices (06.10, 14.10, 16.10 ×2 = 24 L Лозова
+  Жолта) were scanned after the 17.10 count with their old dates, so the 24 L
+  went on top of the counted stock (system was 0 at the count). Recomputed
+  from the 20.10 correction (1 L) + deliveries − sales = 24.25 now.
+- **DB (owner chose):** deliveries kept for cost history; stock 24.25 → 0.25,
+  logged in `stock_adjustments` ("Испораки пред попис: …").
+- **Watch:** an invoice dated before a product's last count should not move
+  stock. Not handled in code yet; owner may want Лозова Жолта counted.
+
 ### 2026-10-29 — Event completed several times
 
 - **Bug:** the ✓ (Заврши) button deducted the menu every time OK was pressed;
