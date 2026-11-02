@@ -14,9 +14,12 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
   red box and locks Увези; `importScannedInvoice` checks again and throws.
   Finishing an import that failed part-way skips the check (`resume`, kept
   in the draft). No number read → no check.
-- **Existing doubles found (not touched, asked owner):** 0474 + 0501
-  Грандпром 19.10, 0028 + 0083 Грандпром 31.10, 0077 Дием 31.10 look imported
-  2× (every line twice). Others have only some repeated lines.
+- **Existing doubles (shown to owner, NOT deleted — he checks by hand):**
+  whole invoice 2×: 0474 + 0501 Грандпром 19.10 (0474's vrat went once to
+  Св.врат Солен, once to Свински Врат-пушен), 0028 + 0083 Грандпром 31.10,
+  0077 Дием 31.10. Some lines 2×: 42847/26 В Три Трејд 19.10, 0083 + 0145
+  Грандпром 29.10, 6822 Макси 30.10, 0199 Грандпром 31.10, 0077 Веропулос
+  01.11 (0092 tea ×4 is real). Deleting via Испорака reverses stock.
 - Build green; inline review only; not clicked through.
 
 ### 2026-11-02 — Испораки: day opens into suppliers
