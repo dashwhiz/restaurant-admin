@@ -13,6 +13,7 @@ import {
   parseScanJson,
   SCAN_PROMPT,
   importScannedInvoice,
+  findImportedInvoice,
   getScanMappings,
   saveScanMappings,
   scanMapKey,
@@ -21,6 +22,7 @@ import {
   SKIP,
   type ScanResult,
   type ImportLine,
+  type ImportedInvoice,
 } from '@/lib/services/scan';
 import { bestMatch } from '@/lib/pos/match';
 import { productVatRate } from '@/lib/vat';
@@ -59,6 +61,8 @@ const DRAFT_KEY = 'lira-scan-draft';
 interface Draft {
   result: ScanResult;
   rows: Row[];
+  /** An import failed part-way; the rest may go in although the invoice is partly saved. */
+  resume?: boolean;
 }
 
 function loadDraft(): Draft | null {
@@ -93,6 +97,20 @@ export default function ScanPage() {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
+  const [resume, setResume] = useState(false);
+  // Set when this invoice is already among the deliveries: importing is blocked.
+  const [duplicate, setDuplicate] = useState<ImportedInvoice | null>(null);
+
+  async function checkDuplicate(scan: ScanResult, resuming: boolean) {
+    setDuplicate(null);
+    if (resuming) return;
+    const hit = await findImportedInvoice({
+      supplier: scan.supplier,
+      invoiceNumber: scan.invoice_number,
+      invoiceDate: scan.invoice_date,
+    }).catch(() => null); // the import itself checks again
+    setDuplicate(hit);
+  }
 
   // Resume an unfinished review left over from before the app closed. Loads
   // products first so the review table doesn't flash with blank match names.
@@ -104,14 +122,16 @@ export default function ScanPage() {
       setProducts(prods);
       setResult(draft.result);
       setRows(draft.rows);
+      setResume(!!draft.resume);
       setPhase('review');
+      checkDuplicate(draft.result, !!draft.resume);
     })();
   }, []);
 
   // Keep the draft in sync with every edit while reviewing.
   useEffect(() => {
-    if (phase === 'review' && result) saveDraft({ result, rows });
-  }, [phase, result, rows]);
+    if (phase === 'review' && result) saveDraft({ result, rows, resume });
+  }, [phase, result, rows, resume]);
 
   // Paste-JSON path: same review flow as a scan, without the API call.
   const [pasteOpen, setPasteOpen] = useState(false);
@@ -153,6 +173,8 @@ export default function ScanPage() {
       ]);
       setProducts(prods);
       setResult(scan);
+      setResume(false);
+      checkDuplicate(scan, false);
       setRows(
         scan.items.map((it) => {
           // A remembered choice beats a fuzzy guess — you already told us once.
@@ -221,6 +243,8 @@ export default function ScanPage() {
     setPhase('idle');
     setResult(null);
     setRows([]);
+    setResume(false);
+    setDuplicate(null);
     clearDraft();
   }
 
@@ -250,7 +274,7 @@ export default function ScanPage() {
         supplier: result.supplier,
         invoiceNumber: result.invoice_number,
         invoiceDate: result.invoice_date,
-      });
+      }, resume);
       // Remember the confirmed lines so the next invoice from this supplier
       // arrives already matched. Best-effort: a failure here must not look like
       // a failed import, because the stock has already moved.
@@ -272,6 +296,7 @@ export default function ScanPage() {
       // double-count stock — only the failed line onward stays in the table.
       if (e instanceof ScanImportError) {
         setRows((rs) => rs.slice(e.processed));
+        if (e.processed > 0) setResume(true);
         toast(`Увезено делумно. Грешка на ставка ${e.processed + 1}: ${e.message}`, 'error');
       } else {
         toast('Грешка: ' + (e as Error).message, 'error');
@@ -366,6 +391,13 @@ export default function ScanPage() {
             <button className="btn-ghost" onClick={reset}>Друга фактура</button>
           </div>
 
+          {duplicate && (
+            <div className="mb-3 rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
+              Оваа фактура е веќе внесена ({duplicate.supplier ?? 'без добавувач'}, {fmtDate(duplicate.date)},{' '}
+              {duplicate.lines} ставки) и не може да се внесе повторно. Ако нешто фали, поправи го во Испораки.
+            </div>
+          )}
+
           <div className="max-h-[60vh] overflow-auto rounded-lg border border-border">
             {rows.length === 0 ? (
               <EmptyState text="Нема прочитани ставки" />
@@ -450,7 +482,7 @@ export default function ScanPage() {
 
           <div className="mt-4 flex justify-end gap-2">
             <button className="btn-ghost" onClick={reset}>Откажи</button>
-            <button className="btn-primary" onClick={confirm} disabled={busy || rows.length === 0}>
+            <button className="btn-primary" onClick={confirm} disabled={busy || rows.length === 0 || !!duplicate}>
               {busy ? 'Увезување…' : 'Увези во залиха'}
             </button>
           </div>
