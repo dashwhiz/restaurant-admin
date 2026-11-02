@@ -28,7 +28,10 @@ nullable, null → guessed by category; added 2026-10-18), `price_updated_at`,
 
 ### `purchases` — deliveries in
 `id`, `product_id`, `quantity`, `cost_per_unit`, `ddv_rate`, `price_with_ddv`,
-`supplier`, `notes`, `created_at`.
+`supplier`, `notes`, `created_at` (invoice day for scans), `stock_applied`
+(boolean, default true — false when a scanned invoice was dated before the
+product's last count, so it never moved stock and edit/delete leave stock
+alone; added 2026-11-02).
 
 ### `sales` — items sold
 `id`, `recipe_id`, `quantity` (numeric — dishes sold by weight, e.g. 0.4 kg; was integer until 2026-10-18), `notes`, `is_gratis` (boolean, default false — POS GRATIS/Pansion portions: deduct stock and count as cost, no revenue; added 2026-10-19), `stock_deducted` (boolean, default true — false when a POS day was imported without deducting), `amount` (numeric, nullable — the till's amount with VAT for a POS row, discounts included; gratis rows 0; null = quantity × recipe price; added 2026-10-20), `created_at` (business day), `inserted_at` (when saved = when stock moved; added 2026-10-19).

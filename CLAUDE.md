@@ -12,8 +12,16 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
   from the 20.10 correction (1 L) + deliveries − sales = 24.25 now.
 - **DB (owner chose):** deliveries kept for cost history; stock 24.25 → 0.25,
   logged in `stock_adjustments` ("Испораки пред попис: …").
-- **Watch:** an invoice dated before a product's last count should not move
-  stock. Not handled in code yet; owner may want Лозова Жолта counted.
+- **Then fixed (owner asked):** a scanned invoice dated before the product's
+  last count (`stocktake_log.created_at` day) is saved with new column
+  `purchases.stock_applied = false` and doesn't touch stock; edit/delete of
+  such a row don't either. "Пред попис — без залиха" badge on Испорака, note
+  in Историја, count in the scan toast. Same-day invoices still add stock.
+  The 4 Ананас rows set to false (their 24 L already taken off). Build green;
+  inline review only; not clicked through.
+- **Open:** Месопром 16.10 (Колбаси 3.3, Св.ребра 13.7, Сланина 3.24) were
+  also scanned after the 17.10 count (system 0 at count) — asked the owner.
+  Колбаси is at −23.71 after a count of 26 — looks like a unit mix-up.
 
 ### 2026-10-29 — Event completed several times
 
