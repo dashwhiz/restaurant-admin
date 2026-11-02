@@ -1,6 +1,7 @@
 // Sales. Selling deducts a recipe's ingredients from stock; editing/deleting
 // reverses through the same helper so stock stays exactly reversible.
 import { getSupabase } from '@/lib/supabase';
+import { fetchAllRows } from './paged';
 import type { Sale } from '@/lib/types';
 import { applyRecipeStock } from './stock';
 
@@ -29,13 +30,10 @@ export function saleAmount(
 }
 
 export async function listSales(): Promise<SaleRow[]> {
-  const { data, error } = await getSupabase()
-    .from('sales')
-    .select('*, recipe:recipes(name,category,selling_price,ddv_rate)')
-    .order('created_at', { ascending: false })
-    .limit(500);
-  if (error) throw error;
-  return (data ?? []) as SaleRow[];
+  // All rows, newest first. A fixed limit hid older days without saying so
+  // (Испораки stopped halfway through 20.10, Продажби before 25.10).
+  const rows = await fetchAllRows<SaleRow>('sales', { select: '*, recipe:recipes(name,category,selling_price,ddv_rate)' });
+  return rows.sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
 }
 
 export async function createSale(input: SaleInput): Promise<void> {

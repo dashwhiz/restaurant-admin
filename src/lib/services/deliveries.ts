@@ -2,6 +2,7 @@
 // the shared stock helper so quantities stay exactly reversible. See
 // docs/features/stock.md.
 import { getSupabase } from '@/lib/supabase';
+import { fetchAllRows } from './paged';
 import type { Purchase } from '@/lib/types';
 import { applyStockDelta } from './stock';
 
@@ -20,13 +21,10 @@ export interface DeliveryInput {
 }
 
 export async function listDeliveries(): Promise<DeliveryRow[]> {
-  const { data, error } = await getSupabase()
-    .from('purchases')
-    .select('*, product:products(name,unit)')
-    .order('created_at', { ascending: false })
-    .limit(300);
-  if (error) throw error;
-  return (data ?? []) as DeliveryRow[];
+  // All rows, newest first. A fixed limit hid older days without saying so
+  // (Испораки stopped halfway through 20.10, Продажби before 25.10).
+  const rows = await fetchAllRows<DeliveryRow>('purchases', { select: '*, product:products(name,unit)' });
+  return rows.sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
 }
 
 /**
