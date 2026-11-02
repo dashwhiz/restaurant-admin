@@ -199,15 +199,6 @@ function invoiceNote(invoiceNumber: string | null): string {
   return invoiceNumber ? `Фактура ${invoiceNumber} · Скенирање` : 'Скенирање';
 }
 
-/** Supplier name without legal form, town and punctuation: "ГРАНДПРОМ-ЗУР Д.О.О.Е.Л." = "ГРАНДПРОМ-ЗУР ДООЕЛ". */
-const LEGAL_WORDS = new Set(['дооел', 'доел', 'доо', 'ад', 'скопје', 'dooel', 'doo', 'skopje']);
-function supplierCore(s: string | null): string {
-  return normName(s ?? '')
-    .split(' ')
-    .filter((w) => w && !LEGAL_WORDS.has(w))
-    .join('');
-}
-
 export interface ImportedInvoice {
   supplier: string | null;
   date: string;
@@ -215,29 +206,18 @@ export interface ImportedInvoice {
 }
 
 /**
- * An invoice already imported: same number, and the same date or supplier. The
- * scan reads the supplier name a little differently each time (0474 went in
- * twice as "ДООЕЛ" and "Д.О.О.Е.Л."), so the name alone can't be required;
- * the number alone isn't enough either, since short numbers (0077) repeat
- * across suppliers. Without a number there's nothing reliable to compare.
+ * An invoice already imported: any delivery with the same invoice number
+ * (owner's rule — number only, whatever the date or supplier). Without a
+ * number there's nothing to compare.
  */
-export async function findImportedInvoice(meta: {
-  supplier: string | null;
-  invoiceNumber: string | null;
-  invoiceDate: string | null;
-}): Promise<ImportedInvoice | null> {
-  if (!meta.invoiceNumber?.trim()) return null;
+export async function findImportedInvoice(invoiceNumber: string | null): Promise<ImportedInvoice | null> {
+  if (!invoiceNumber?.trim()) return null;
   const { data, error } = await getSupabase()
     .from('purchases')
     .select('supplier, created_at')
-    .eq('notes', invoiceNote(meta.invoiceNumber));
+    .eq('notes', invoiceNote(invoiceNumber));
   if (error) throw error;
-  const key = supplierCore(meta.supplier);
-  const hits = (data ?? []).filter(
-    (r) =>
-      (meta.invoiceDate && (r.created_at as string).slice(0, 10) === meta.invoiceDate) ||
-      (key && supplierCore(r.supplier as string | null) === key),
-  );
+  const hits = data ?? [];
   if (hits.length === 0) return null;
   return { supplier: hits[0].supplier as string | null, date: (hits[0].created_at as string).slice(0, 10), lines: hits.length };
 }
@@ -248,7 +228,7 @@ export async function importScannedInvoice(
   /** Finishing an import that failed part-way: its first lines are already in. */
   resume = false,
 ): Promise<{ imported: number; created: number; beforeCount: number }> {
-  if (!resume && (await findImportedInvoice(meta))) {
+  if (!resume && (await findImportedInvoice(meta.invoiceNumber))) {
     throw new Error(`Фактура ${meta.invoiceNumber} е веќе внесена и не може да се внесе повторно`);
   }
   const sb = getSupabase();

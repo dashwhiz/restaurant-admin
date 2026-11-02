@@ -104,11 +104,7 @@ export default function ScanPage() {
   async function checkDuplicate(scan: ScanResult, resuming: boolean) {
     setDuplicate(null);
     if (resuming) return;
-    const hit = await findImportedInvoice({
-      supplier: scan.supplier,
-      invoiceNumber: scan.invoice_number,
-      invoiceDate: scan.invoice_date,
-    }).catch(() => null); // the import itself checks again
+    const hit = await findImportedInvoice(scan.invoice_number).catch(() => null); // the import itself checks again
     setDuplicate(hit);
   }
 
