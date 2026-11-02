@@ -13,8 +13,9 @@ Newest first. Keep each entry short: what changed, where it stands, what's next.
   `listSales` had `.limit(500)` of 986 → nothing before 25.10 showed in
   Продажби; `listWaste` `.limit(300)` (0 rows now).
 - **Fix:** all three use `fetchAllRows` and sort newest first in JS.
-  Build green; inline review only; not clicked through. If loading gets slow
-  as sales grow, add a date range instead of a limit.
+  Build green; inline review only. Owner confirmed on the live site: the
+  20.10 Мелено Месо delivery shows. If loading gets slow as sales grow, add a
+  date range instead of a limit.
 
 ### 2026-11-02 — Настани: Сите / Планирани / Завршени
 
