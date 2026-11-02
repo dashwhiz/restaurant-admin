@@ -4,6 +4,27 @@
 
 Newest first. Keep each entry short: what changed, where it stands, what's next.
 
+### 2026-11-02 — End of day summary
+
+What was done today (details in the entries below):
+- **Лозова Жолта:** 24 L of Ананас invoices dated before the 17.10 count
+  taken off stock (24.25 → 0.25); invoices kept.
+- **Pre-count invoices:** a scanned invoice dated before the product's last
+  count no longer moves stock (`purchases.stock_applied`).
+- **Испораки:** a day opens into suppliers, then their lines.
+- **Scan:** an invoice with the same number + supplier can't be imported twice.
+- **Настани:** Сите / Планирани / Завршени tabs.
+- **Lists:** Испораки / Продажби / Отпад load every row (were capped at
+  300/500 and hid older days). Owner confirmed.
+
+Open (owner, by hand):
+- Double-imported invoices: listed in "Scan: same invoice…" below. Do NOT
+  delete unasked.
+- Count Колбаси (−28.71, unit mix-up?) and Лозова Жолта (0.25 is a calc).
+- Месопром 16.10 pre-count deliveries: owner chose to leave them.
+- Still open from before: Компири/Ајдамер count, Домат-сув reminder,
+  šifrarnik unitless lines, scan paste-JSON test.
+
 ### 2026-11-02 — Lists hid older rows (Испораки, Продажби, Отпад)
 
 - **Bug:** owner changed Месопром 20.10 Јунешка Кртина 25 kg → Мелено Месо
